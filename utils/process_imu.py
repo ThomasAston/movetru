@@ -37,6 +37,12 @@ for csv_file in input_dir.glob("*.csv"):
     # In Polars, we'll filter out rows where all columns except the first are null
     df_clean = df.filter(~pl.all_horizontal(pl.col(df.columns[1:]).is_null()))
     
+    # Keep only time, gyro, and accelerometer columns
+    columns_to_keep = ['Time', 'Gyro X', 'Gyro Y', 'Gyro Z', 'Accel X', 'Accel Y', 'Accel Z']
+    # Filter to only include columns that exist in the dataframe
+    available_columns = [col for col in columns_to_keep if col in df_clean.columns]
+    df_clean = df_clean.select(available_columns)
+    
     print(f"  After cleaning: {df_clean.shape}")
     print(f"  Reduction: {(1 - len(df_clean)/len(df))*100:.1f}%")
     
