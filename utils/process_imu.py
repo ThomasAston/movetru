@@ -1,4 +1,5 @@
-# Simple script for processing IMU CSV files by removing empty rows and saving as parquet.
+# Simple script for processing large IMU CSV files by removing empty rows and unnecessary 
+# columns before saving as parquet.
 import polars as pl
 from pathlib import Path
 
@@ -39,6 +40,7 @@ for csv_file in input_dir.glob("*.csv"):
     
     # Keep only time, gyro, and accelerometer columns
     columns_to_keep = ['Time', 'Gyro X', 'Gyro Y', 'Gyro Z', 'Accel X', 'Accel Y', 'Accel Z']
+    
     # Filter to only include columns that exist in the dataframe
     available_columns = [col for col in columns_to_keep if col in df_clean.columns]
     df_clean = df_clean.select(available_columns)

@@ -1,0 +1,39 @@
+# xguff.mplstyle
+# --- Fonts ---
+font.family: monospace
+font.size: 9
+axes.titlesize: 12
+
+
+# --- Colors ---
+axes.prop_cycle: cycler(color=["#d68032", "#2a9d8f", "#bcbcbc", "#457b9d", "#6a4c93", "#2f2f2f"])
+text.color: "#d68032"
+
+# --- Spines & grid ---
+axes.spines.top: False
+axes.spines.right: False
+axes.grid: True
+grid.linestyle: -
+grid.linewidth: 0.5
+grid.alpha: 0.15
+grid.color: "#bcbcbc"
+
+# --- Ticks ---
+xtick.direction: in
+ytick.direction: in
+
+# --- Figure & save ---
+figure.facecolor: white
+axes.facecolor: white
+savefig.bbox: tight
+savefig.dpi: 400
+
+# --- Line settings ---
+lines.linewidth: 1
+lines.markeredgewidth: 0
+
+# --- Legend ---
+legend.frameon: False
+legend.edgecolor: none
+legend.facecolor: none
+legend.labelcolor: linecolor 
