@@ -46,6 +46,8 @@ class ChartRenderer:
         )
         
         fig = go.Figure()
+        
+        # Add main signal trace
         fig.add_trace(go.Scatter(
             x=times,
             y=values,
@@ -72,7 +74,7 @@ class ChartRenderer:
         fig.update_yaxes(fixedrange=True)
         
         return fig
-    
+
     def downsample_data(
         self, 
         times: List[float], 

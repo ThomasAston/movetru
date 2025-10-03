@@ -38,11 +38,8 @@ selected_sensors = ["Gyro Y"]
 # Stream controls
 start_time, start_stream, stop_stream = ui.render_stream_controls()
 
-# Filter configuration (in sidebar)
-filter_config = ui.render_filter_controls(sampling_rate=stream_config.SAMPLING_RATE)
-
-# Initialize processor with filter configuration
-processor = IMUStreamProcessor(stream_config, filter_config)
+# Initialize processor
+processor = IMUStreamProcessor(stream_config)
 
 # Status and chart placeholders
 status = ui.create_status_placeholder()
@@ -85,19 +82,9 @@ async def stream_imu_data(selected_player: str, sensors: list, start_from_time: 
     
     # Display streaming info
     actual_start_time = df_lf['Time'][start_from]
-    filter_info = processor.get_filter_info()
-    
-    if filter_info:
-        filter_desc = filter_info.get('description', 'Unknown filter')
-        status.success(
-            f"Streaming {min_len - start_from} samples (starting at {actual_start_time:.2f}s, sample {start_from})\n\n"
-            f"🎛️ Filter: {filter_desc}"
-        )
-    else:
-        status.success(
-            f"Streaming {min_len - start_from} samples (starting at {actual_start_time:.2f}s, sample {start_from})\n\n"
-            f"🎛️ Filter: None (raw data)"
-        )
+    status.success(
+        f"Streaming {min_len - start_from} samples (starting at {actual_start_time:.2f}s, sample {start_from})"
+    )
     
     # Stream the data
     last_update_time = time.time()
