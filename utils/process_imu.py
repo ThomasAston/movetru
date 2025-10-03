@@ -1,12 +1,15 @@
 # Simple script for processing large IMU CSV files by removing empty rows and unnecessary 
-# columns before saving as parquet.
+# columns before saving as parquet, then synchronizing left and right foot sensors.
 import polars as pl
+import numpy as np
 from pathlib import Path
 
 # Configuration
 input_dir = Path("../data/raw/imu")
 output_dir = Path("../data/raw/imu")
+sync_output_dir = Path("../data/raw/imu")
 output_dir.mkdir(exist_ok=True)
+sync_output_dir.mkdir(exist_ok=True)
 
 # Process all CSV files in the input directory
 for csv_file in input_dir.glob("*.csv"):
@@ -59,3 +62,79 @@ for csv_file in input_dir.glob("*.csv"):
     print()
 
 print("All files processed!")
+print("\n" + "="*60)
+print("Starting synchronization process...")
+print("="*60 + "\n")
+
+# Get all parquet files grouped by participant
+parquet_files = sorted(output_dir.glob("*.parquet"))
+participants = set([f.stem.split('_')[0] for f in parquet_files if '_' in f.stem])
+
+for participant in sorted(participants):
+    lf_file = output_dir / f"{participant}_LF.parquet"
+    rf_file = output_dir / f"{participant}_RF.parquet"
+    
+    # Check if both left and right foot files exist
+    if not (lf_file.exists() and rf_file.exists()):
+        print(f"Skipping {participant} - missing LF or RF file")
+        continue
+    
+    print(f"Synchronizing {participant}...")
+    
+    # Load the data
+    df_lf = pl.read_parquet(lf_file)
+    df_rf = pl.read_parquet(rf_file)
+    
+    # Convert Accel Z to numpy for spike detection
+    lf_accel_z = df_lf['Accel Z'].to_numpy()
+    rf_accel_z = df_rf['Accel Z'].to_numpy()
+    
+    # Find first big spike (d = mean + 3*std)
+    lf_threshold = lf_accel_z.mean() + 3 * lf_accel_z.std()
+    rf_threshold = rf_accel_z.mean() + 3 * rf_accel_z.std()
+    # lf_threshold = 4
+    # rf_threshold = 4
+    # print(f"  LF threshold: {lf_threshold:.2f}"
+    #       f", RF threshold: {rf_threshold:.2f}")
+    lf_spike_idx = np.argmax(lf_accel_z > lf_threshold)
+    rf_spike_idx = np.argmax(rf_accel_z > rf_threshold)
+    
+    print(f"  LF spike at index: {lf_spike_idx}")
+    print(f"  RF spike at index: {rf_spike_idx}")
+    
+    # Synchronize all signals by aligning the first spike
+    sync_length = min(len(df_lf) - lf_spike_idx, len(df_rf) - rf_spike_idx)
+    
+    # Sync left foot data
+    lf_synced = df_lf[lf_spike_idx:lf_spike_idx + sync_length]
+    
+    # Sync right foot data
+    rf_synced = df_rf[rf_spike_idx:rf_spike_idx + sync_length]
+    
+    # Reset time columns to start at zero
+    if 'Time' in lf_synced.columns:
+        lf_start_time = lf_synced['Time'][0]
+        lf_synced = lf_synced.with_columns(
+            (pl.col('Time') - lf_start_time).alias('Time')
+        )
+    
+    if 'Time' in rf_synced.columns:
+        rf_start_time = rf_synced['Time'][0]
+        rf_synced = rf_synced.with_columns(
+            (pl.col('Time') - rf_start_time).alias('Time')
+        )
+    
+    print(f"  Synced length: {sync_length} samples")
+    print(f"  Time columns reset to start at 0")
+    
+    # Save synchronized data
+    lf_sync_file = sync_output_dir / f"{participant}_LF.parquet"
+    rf_sync_file = sync_output_dir / f"{participant}_RF.parquet"
+    
+    lf_synced.write_parquet(lf_sync_file)
+    rf_synced.write_parquet(rf_sync_file)
+    
+    print(f"  Saved to {lf_sync_file.name} and {rf_sync_file.name}")
+    print()
+
+print("Synchronization complete!")
