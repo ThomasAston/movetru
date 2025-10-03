@@ -61,8 +61,15 @@ class ChartRenderer:
             yaxis=dict(range=y_range, fixedrange=True),
             showlegend=False,
             transition={'duration': 0},
-            uirevision='constant'
+            uirevision='constant',
+            # Reduce animations that can cause flickering
+            hovermode=False,
+            dragmode=False
         )
+        
+        # Disable animations for smoother updates
+        fig.update_xaxes(fixedrange=True)
+        fig.update_yaxes(fixedrange=True)
         
         return fig
     

@@ -7,17 +7,19 @@ import polars as pl
 import numpy as np
 
 from .config import StreamConfig
+from .signal_filters import StreamingFilter, FilterConfig
 
 
 class IMUStreamProcessor:
     """Processes IMU data streams with rolling windows and dynamic range calculation."""
     
-    def __init__(self, config: StreamConfig):
+    def __init__(self, config: StreamConfig, filter_config: Optional[FilterConfig] = None):
         """
         Initialize the stream processor.
         
         Args:
             config: Stream configuration object
+            filter_config: Optional filter configuration. If None, no filtering is applied.
         """
         self.config = config
         self.windows_lf = None
@@ -26,6 +28,12 @@ class IMUStreamProcessor:
         self.time_window_rf = None
         self.y_ranges_lf = {}
         self.y_ranges_rf = {}
+        
+        # Filtering support
+        self.filter_config = filter_config
+        self.filters_lf = {}  # Dict of sensor -> filter
+        self.filters_rf = {}  # Dict of sensor -> filter
+        self.filtering_enabled = filter_config is not None and filter_config.filter_type != 'none'
     
     def initialize_windows(self, window_size: int, sensors: List[str]):
         """
@@ -39,6 +47,12 @@ class IMUStreamProcessor:
         self.windows_rf = defaultdict(partial(deque, maxlen=window_size))
         self.time_window_lf = deque(maxlen=window_size)
         self.time_window_rf = deque(maxlen=window_size)
+        
+        # Initialize filters for each sensor if filtering is enabled
+        if self.filtering_enabled:
+            for sensor in sensors:
+                self.filters_lf[sensor] = StreamingFilter(self.filter_config)
+                self.filters_rf[sensor] = StreamingFilter(self.filter_config)
     
     def calculate_y_ranges(
         self, 
@@ -113,8 +127,16 @@ class IMUStreamProcessor:
         self.time_window_rf.append(row_rf['Time'])
         
         for sensor in sensors:
-            self.windows_lf[sensor].append(row_lf[sensor])
-            self.windows_rf[sensor].append(row_rf[sensor])
+            # Apply filtering if enabled
+            if self.filtering_enabled:
+                lf_value = self.filters_lf[sensor].filter_sample(row_lf[sensor])
+                rf_value = self.filters_rf[sensor].filter_sample(row_rf[sensor])
+            else:
+                lf_value = row_lf[sensor]
+                rf_value = row_rf[sensor]
+            
+            self.windows_lf[sensor].append(lf_value)
+            self.windows_rf[sensor].append(rf_value)
     
     def get_current_data(self, sensor: str) -> Dict:
         """
@@ -170,3 +192,20 @@ class IMUStreamProcessor:
         if current_max > y_max_rf:
             expansion = abs(current_max) * self.config.DYNAMIC_RANGE_EXPANSION
             self.y_ranges_rf[sensor][1] = current_max + expansion
+    
+    def get_filter_info(self) -> Optional[dict]:
+        """
+        Get information about the currently applied filter.
+        
+        Returns:
+            Dictionary with filter details, or None if no filtering
+        """
+        if not self.filtering_enabled:
+            return None
+        
+        # Get info from any filter (they're all configured the same)
+        if self.filters_lf:
+            sensor = list(self.filters_lf.keys())[0]
+            return self.filters_lf[sensor].get_info()
+        
+        return None

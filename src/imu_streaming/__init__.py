@@ -5,6 +5,16 @@ from .data_loader import IMUDataLoader
 from .stream_processor import IMUStreamProcessor
 from .chart_renderer import ChartRenderer
 from .ui_components import IMUStreamUI
+from .signal_filters import (
+    FilterConfig,
+    FilterType,
+    StreamingFilter,
+    ButterworthFilter,
+    MovingAverageFilter,
+    SavitzkyGolayFilter,
+    AdaptiveFrequencyFilter,
+    compare_filters
+)
 
 __all__ = [
     'StreamConfig',
@@ -13,4 +23,12 @@ __all__ = [
     'IMUStreamProcessor',
     'ChartRenderer',
     'IMUStreamUI',
+    'FilterConfig',
+    'FilterType',
+    'StreamingFilter',
+    'ButterworthFilter',
+    'MovingAverageFilter',
+    'SavitzkyGolayFilter',
+    'AdaptiveFrequencyFilter',
+    'compare_filters',
 ]

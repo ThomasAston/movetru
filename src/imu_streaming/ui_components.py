@@ -5,6 +5,7 @@ from PIL import Image
 from typing import Tuple, Optional
 
 from .config import UIConfig
+from .signal_filters import FilterConfig, FilterType
 
 
 class IMUStreamUI:
@@ -107,3 +108,30 @@ class IMUStreamUI:
             Streamlit empty placeholder
         """
         return st.empty()
+    
+    def render_filter_controls(self, sampling_rate: int = 256) -> Optional[FilterConfig]:
+        """
+        Render filter configuration controls.
+        
+        Args:
+            sampling_rate: Sampling rate in Hz
+            
+        Returns:
+            FilterConfig object or None if no filtering
+        """
+        enable_filter = st.checkbox(
+            "Enable signal smoothing",
+            value=True,
+            help="4th order low-pass Butterworth filter (based on FFT analysis)"
+        )
+        
+        if not enable_filter:
+            return FilterConfig(filter_type='none')
+        
+        # Use the optimal parameters from your notebook analysis
+        return FilterConfig(
+            filter_type='butterworth',
+            cutoff_freq=12.6,  # Hz - preserves top 3 harmonics
+            filter_order=4,
+            sampling_rate=sampling_rate
+        )

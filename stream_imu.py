@@ -23,7 +23,6 @@ ui_config = UIConfig()
 st.set_page_config(page_title="Movetru stride detection")
 ui = IMUStreamUI(ui_config)
 data_loader = IMUDataLoader(stream_config.DATA_DIR)
-processor = IMUStreamProcessor(stream_config)
 renderer = ChartRenderer(ui_config)
 
 # Render UI
@@ -39,10 +38,16 @@ selected_sensors = ["Gyro Y"]
 # Stream controls
 start_time, start_stream, stop_stream = ui.render_stream_controls()
 
+# Filter configuration (in sidebar)
+filter_config = ui.render_filter_controls(sampling_rate=stream_config.SAMPLING_RATE)
+
+# Initialize processor with filter configuration
+processor = IMUStreamProcessor(stream_config, filter_config)
+
+
 # Status and chart placeholders
 status = ui.create_status_placeholder()
 chart_lf, chart_rf = ui.create_chart_placeholders(selected_sensors)
-
 
 
 async def stream_imu_data(selected_player: str, sensors: list, start_from_time: float = 0.0):
@@ -81,7 +86,19 @@ async def stream_imu_data(selected_player: str, sensors: list, start_from_time: 
     
     # Display streaming info
     actual_start_time = df_lf['Time'][start_from]
-    status.success(f"Streaming {min_len - start_from} samples (starting at {actual_start_time:.2f}s, sample {start_from})")
+    filter_info = processor.get_filter_info()
+    
+    if filter_info:
+        filter_desc = filter_info.get('description', 'Unknown filter')
+        status.success(
+            f"Streaming {min_len - start_from} samples (starting at {actual_start_time:.2f}s, sample {start_from})\n\n"
+            f"🎛️ Filter: {filter_desc}"
+        )
+    else:
+        status.success(
+            f"Streaming {min_len - start_from} samples (starting at {actual_start_time:.2f}s, sample {start_from})\n\n"
+            f"🎛️ Filter: None (raw data)"
+        )
     
     # Stream the data
     last_update_time = time.time()
