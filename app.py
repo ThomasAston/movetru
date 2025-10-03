@@ -44,7 +44,6 @@ filter_config = ui.render_filter_controls(sampling_rate=stream_config.SAMPLING_R
 # Initialize processor with filter configuration
 processor = IMUStreamProcessor(stream_config, filter_config)
 
-
 # Status and chart placeholders
 status = ui.create_status_placeholder()
 chart_lf, chart_rf = ui.create_chart_placeholders(selected_sensors)

@@ -22,7 +22,7 @@ FilterType = Literal['butterworth', 'moving_average', 'savgol', 'none']
 class FilterConfig:
     """Configuration for signal filtering."""
     filter_type: FilterType = 'butterworth'
-    cutoff_freq: float = 12.6  # Hz - default from your notebook analysis
+    cutoff_freq: float = 5  # Hz - default from your notebook analysis
     filter_order: int = 4
     sampling_rate: int = 256  # Hz
     
