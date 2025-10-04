@@ -9,7 +9,7 @@ All files relating to the task are contained in this repository:
 - `utils`: basic Python scripts for data processing and analysis.
 - `workbooks`: Jupyter notebooks used for data exploration and analysis.
 
-A working demo of the Streamlit app can be found at: [movetru.streamlit.app](https://movetru.streamlit.app)
+A working demo of the Streamlit app can be found at: [movetru-stride.streamlit.app](https://movetru-stride.streamlit.app/)
 
 ## Real-Time Gait Detection
 
