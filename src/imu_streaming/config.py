@@ -19,7 +19,7 @@ class StreamConfig:
     GYRO_MIN_RANGE: float = 400.0  # Minimum y-axis range for gyroscope
     ACCEL_MIN_RANGE: float = 2.0  # Minimum y-axis range for accelerometer
     DYNAMIC_RANGE_EXPANSION: float = 0.1  # Expand range by 10% when exceeded
-    FILTER_WINDOW_SIZE: int = 9  # Samples used in moving average filter
+    FILTER_WINDOW_SIZE: int = 15  # Samples used in moving average filter
 
 
 @dataclass
