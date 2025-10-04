@@ -24,7 +24,9 @@ class IMUStreamUI:
         logo_img = Image.open(self.config.LOGO_PATH)
         st.image(logo_img, width=logo_img.width // 2)
         st.title("Real-time stride event detection")
-        st.markdown(
+        with st.expander("About this app", expanded=False):
+            
+            st.markdown(
             """
             This app streams foot-mounted IMU sensor data and detects stride events for gait analysis in real time.
 
@@ -36,7 +38,7 @@ class IMUStreamUI:
 
             See the [GitHub notebook](https://github.com/ThomasAston/movetru/blob/master/workbooks/demo_realtime.ipynb) for in-depth explanation.
             """
-        )
+            )
     
     def render_player_selector(self, players: list) -> Optional[str]:
         """
