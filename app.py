@@ -55,7 +55,7 @@ gait_detector = GaitEventDetector(
 
 # Status and chart placeholders
 status = ui.create_status_placeholder()
-chart_lf, chart_rf = ui.create_chart_placeholders(selected_sensors)
+chart = ui.create_chart_placeholders(selected_sensors)
 
 # Metrics placeholders
 st.subheader("Gait Metrics")
@@ -68,6 +68,14 @@ with col2:
     st.write("**Overall Session**")
     metrics_overall_lf = st.empty()
     metrics_overall_rf = st.empty()
+
+# Initialize session state
+if 'streaming' not in st.session_state:
+    st.session_state.streaming = False
+if 'last_chart' not in st.session_state:
+    st.session_state.last_chart = None
+if 'last_metrics' not in st.session_state:
+    st.session_state.last_metrics = None
 
 
 async def stream_imu_data(selected_player: str, sensors: list, start_from_time: float = 0.0):
@@ -116,10 +124,11 @@ async def stream_imu_data(selected_player: str, sensors: list, start_from_time: 
     # Stream the data
     last_update_time = time.time()
     sample_count = 0
+    chart_update_count = 0  # Track chart updates for event marker rendering
     
     for row_idx in range(start_from, min_len):
         # Check if we should stop
-        if 'stop_streaming' in st.session_state and st.session_state.stop_streaming:
+        if not st.session_state.streaming:
             status.warning("Stream stopped by user")
             break
         
@@ -143,13 +152,11 @@ async def stream_imu_data(selected_player: str, sensors: list, start_from_time: 
         
         # Only update charts every UPDATE_INTERVAL samples for better performance
         if sample_count >= stream_config.UPDATE_INTERVAL:
-            # Get all detected events for plotting
+            chart_update_count += 1
+            
+            # Get all detected events for display
             events_lf = gait_detector.get_all_events('left')
             events_rf = gait_detector.get_all_events('right')
-            
-            # Prepare all figures first, then update both charts together for better sync
-            figs_lf = []
-            figs_rf = []
             
             for sensor in sensors:
                 # Get current data from processor
@@ -166,29 +173,28 @@ async def stream_imu_data(selected_player: str, sensors: list, start_from_time: 
                 # Update ranges dynamically if needed
                 processor.update_y_ranges(sensor, data['lf_values'], data['rf_values'])
                 
-                # Get updated ranges
+                # Use combined y-range (max of both ranges)
                 y_range_lf = processor.y_ranges_lf[sensor]
                 y_range_rf = processor.y_ranges_rf[sensor]
+                y_range_combined = [
+                    min(y_range_lf[0], y_range_rf[0]),
+                    max(y_range_lf[1], y_range_rf[1])
+                ]
                 
-                # Create charts with events using renderer
-                fig_lf = renderer.create_sensor_chart(
-                    times_lf_display, values_lf_display, y_range_lf, sensor, 'LF', events_lf
-                )
-                fig_rf = renderer.create_sensor_chart(
-                    times_rf_display, values_rf_display, y_range_rf, sensor, 'RF', events_rf
+                # Create combined chart with side-by-side subplots
+                fig = renderer.create_combined_chart(
+                    times_lf_display, values_lf_display,
+                    times_rf_display, values_rf_display,
+                    y_range_combined, sensor,
+                    events_lf, events_rf
                 )
                 
-                figs_lf.append(fig_lf)
-                figs_rf.append(fig_rf)
-            
-            # Update both charts together for better synchronization
-            if chart_lf and figs_lf:
-                for fig in figs_lf:
-                    chart_lf.plotly_chart(fig, use_container_width=True)
-            
-            if chart_rf and figs_rf:
-                for fig in figs_rf:
-                    chart_rf.plotly_chart(fig, use_container_width=True)
+                # Save to session state for freezing
+                st.session_state.last_chart = fig
+                
+                # Update chart
+                if chart:
+                    chart.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
             
             # Update gait metrics
             metrics_lf_recent = gait_detector.get_metrics('left', window_seconds=stream_config.METRICS_WINDOW)
@@ -208,10 +214,25 @@ async def stream_imu_data(selected_player: str, sensors: list, start_from_time: 
                     lines.append(f"Stride: {metrics['stride_time_mean']:.3f}s ± {metrics['stride_time_std']:.3f}s")
                 return "\n\n".join(lines)
             
-            metrics_recent_lf.markdown(format_metrics(metrics_lf_recent, "Left Foot"))
-            metrics_recent_rf.markdown(format_metrics(metrics_rf_recent, "Right Foot"))
-            metrics_overall_lf.markdown(format_metrics(metrics_lf_overall, "Left Foot"))
-            metrics_overall_rf.markdown(format_metrics(metrics_rf_overall, "Right Foot"))
+            # Format metrics
+            recent_lf_text = format_metrics(metrics_lf_recent, "Left Foot")
+            recent_rf_text = format_metrics(metrics_rf_recent, "Right Foot")
+            overall_lf_text = format_metrics(metrics_lf_overall, "Left Foot")
+            overall_rf_text = format_metrics(metrics_rf_overall, "Right Foot")
+            
+            # Save to session state for freezing
+            st.session_state.last_metrics = {
+                'recent_lf': recent_lf_text,
+                'recent_rf': recent_rf_text,
+                'overall_lf': overall_lf_text,
+                'overall_rf': overall_rf_text
+            }
+            
+            # Display metrics
+            metrics_recent_lf.markdown(recent_lf_text)
+            metrics_recent_rf.markdown(recent_rf_text)
+            metrics_overall_lf.markdown(overall_lf_text)
+            metrics_overall_rf.markdown(overall_rf_text)
             
             # Update status and calculate timing
             current_real_time = time.time()
@@ -222,11 +243,15 @@ async def stream_imu_data(selected_player: str, sensors: list, start_from_time: 
                 else stream_config.DEFAULT_SPEED
             )
             
+            # Get event counts for status (always available, not just when rendering)
+            all_events_lf = gait_detector.get_all_events('left')
+            all_events_rf = gait_detector.get_all_events('right')
+            
             status.info(
                 f"Sample {row_idx + 1}/{min_len} | "
                 f"LF Time: {current_time_lf:.2f}s | RF Time: {current_time_rf:.2f}s | "
                 f"Target Speed: {stream_config.DEFAULT_SPEED}x | Actual: {actual_speed:.1f}x | "
-                f"Events: L:{len(events_lf['msw'])} R:{len(events_rf['msw'])} MSW"
+                f"Events: L:{len(all_events_lf['msw'])} R:{len(all_events_rf['msw'])} MSW"
             )
             
             # Calculate delay accounting for rendering time
@@ -244,16 +269,60 @@ async def stream_imu_data(selected_player: str, sensors: list, start_from_time: 
             sample_count = 0
     
     status.success(f"Stream completed! Processed {min_len} samples")
+    st.session_state.streaming = False
 
 
-# Handle streaming
+# Pre-populate the UI with frozen/empty state before streaming starts
+# This prevents the UI from disappearing when start is pressed
+if not st.session_state.streaming:
+    if st.session_state.last_chart is not None and chart:
+        # Show frozen chart from last stream
+        chart.plotly_chart(st.session_state.last_chart, use_container_width=True, config={'displayModeBar': False}, key='frozen_chart')
+    elif chart:
+        # Show empty chart before first stream
+        empty_fig = renderer.create_combined_chart(
+            times_lf=[0], values_lf=[0],
+            times_rf=[0], values_rf=[0],
+            y_range=[-200, 200],
+            sensor_name="Gyro Y",
+            events_lf=None,
+            events_rf=None
+        )
+        chart.plotly_chart(empty_fig, use_container_width=True, config={'displayModeBar': False}, key='empty_chart')
+    
+    # Display metrics
+    if st.session_state.last_metrics is not None:
+        # Show frozen metrics from last stream
+        metrics_recent_lf.markdown(st.session_state.last_metrics['recent_lf'])
+        metrics_recent_rf.markdown(st.session_state.last_metrics['recent_rf'])
+        metrics_overall_lf.markdown(st.session_state.last_metrics['overall_lf'])
+        metrics_overall_rf.markdown(st.session_state.last_metrics['overall_rf'])
+    else:
+        # Show empty metrics before first stream
+        def format_empty_metrics(label):
+            lines = [f"**{label}**"]
+            lines.append(f"Strides: --")
+            lines.append(f"Stance: --")
+            lines.append(f"Swing: --")
+            lines.append(f"Stride: --")
+            return "\n\n".join(lines)
+        
+        metrics_recent_lf.markdown(format_empty_metrics("Left Foot"))
+        metrics_recent_rf.markdown(format_empty_metrics("Right Foot"))
+        metrics_overall_lf.markdown(format_empty_metrics("Left Foot"))
+        metrics_overall_rf.markdown(format_empty_metrics("Right Foot"))
+    
+    if st.session_state.last_chart is None:
+        status.info("Ready to stream. Click 'Start Stream' to begin.")
+
+# Handle streaming (after displaying initial state)
 if start_stream and selected_player and selected_sensors:
-    st.session_state.stop_streaming = False
+    st.session_state.streaming = True
     asyncio.run(stream_imu_data(selected_player, selected_sensors, start_time))
 
 if stop_stream:
-    st.session_state.stop_streaming = True
-    status.warning("Stopping stream...")
+    st.session_state.streaming = False
+    st.rerun()  # Force rerun to show frozen state immediately
 
 if not selected_sensors:
     st.warning("Please select at least one sensor to display")

@@ -11,8 +11,8 @@ class StreamConfig:
     DATA_DIR: Path = Path("data/raw/imu")
     UPDATE_INTERVAL: int = 25  # Update chart every N samples
     SAMPLING_RATE: int = 256  # Hz
-    DOWNSAMPLE_FACTOR: int = 2  # Display every Nth point
-    DEFAULT_WINDOW_SIZE: int = 2000  # Number of samples in rolling window
+    DOWNSAMPLE_FACTOR: int = 2  # Display every Nth point (increased for smoother rendering)
+    DEFAULT_WINDOW_SIZE: int = 1280  # Number of samples in rolling window (5 seconds at 256 Hz)
     DEFAULT_SPEED: float = 1.0  # Playback speed multiplier
     RANGE_CALCULATION_WINDOW: int = 30  # seconds - for y-axis range calculation
     Y_AXIS_PADDING: float = 0.3  # Padding around data range (30%)
@@ -27,6 +27,9 @@ class StreamConfig:
     MAX_STRIDE_TIME: float = 2.5  # Maximum valid stride duration (seconds)
     MIN_STRIDE_TIME: float = 0.1  # Minimum valid stride duration (seconds)
     METRICS_WINDOW: float = 5.0  # Time window for recent metrics (seconds)
+    EVENT_MARKER_OPACITY: float = 0.8  # Opacity for event markers (reduces visual pop)
+    EVENT_UPDATE_INTERVAL: int = 10  # Update event markers every N chart updates (reduces juddering)
+    EVENT_UPDATE_INTERVAL: int = 3  # Update event markers every N chart updates (reduces juddering)
 
 
 @dataclass
@@ -34,9 +37,9 @@ class UIConfig:
     """Configuration for UI elements and styling."""
     
     LOGO_PATH: Path = Path("data/images/logo.webp")
-    CHART_HEIGHT: int = 200
+    CHART_HEIGHT: int = 500  # Taller for stacked layout with legend
     CHART_LINE_WIDTH: float = 1.5
-    CHART_MARGIN: dict = field(default_factory=lambda: dict(l=20, r=20, t=10, b=20))
+    CHART_MARGIN: dict = field(default_factory=lambda: dict(l=50, r=20, t=60, b=50))  # Extra top margin for legend
     CHART_COLORS: dict = field(default_factory=lambda: {
         'left_foot': '#d68032',   # Orange
         'right_foot': '#2a9d8f'   # Teal

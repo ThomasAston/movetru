@@ -76,28 +76,24 @@ class IMUStreamUI:
     def create_chart_placeholders(
         self, 
         sensors: list
-    ) -> Tuple[Optional[st.delta_generator.DeltaGenerator], 
-               Optional[st.delta_generator.DeltaGenerator]]:
+    ) -> Optional[st.delta_generator.DeltaGenerator]:
         """
-        Create placeholders for charts.
+        Create placeholder for combined chart.
         
         Args:
             sensors: List of selected sensors
             
         Returns:
-            Tuple of (left_foot_chart, right_foot_chart) or (None, None)
+            Chart placeholder or None
         """
         if not sensors:
             st.warning("Please select at least one sensor to display")
-            return None, None
+            return None
         
         st.subheader("Live Data")
-        st.markdown("**Left Foot (LF)**")
-        chart_lf = st.empty()
-        st.markdown("**Right Foot (RF)**")
-        chart_rf = st.empty()
+        chart = st.empty()
         
-        return chart_lf, chart_rf
+        return chart
     
     def create_status_placeholder(self) -> st.delta_generator.DeltaGenerator:
         """
