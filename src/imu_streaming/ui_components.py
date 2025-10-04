@@ -24,6 +24,19 @@ class IMUStreamUI:
         logo_img = Image.open(self.config.LOGO_PATH)
         st.image(logo_img, width=logo_img.width // 2)
         st.title("Real-time stride event detection")
+        st.markdown(
+            """
+            This app streams foot-mounted IMU sensor data and detects stride events for gait analysis in real time.
+
+            It uses a rule-based algorithm to identify mid-swing and mid-stance events, then estimates foot off and foot strike timings.
+
+            Methods are based on:
+            - [Falbriard et al., 2018](https://www.frontiersin.org/journals/physiology/articles/10.3389/fphys.2018.00610/full)
+            - [Gouda and Andrysek, 2022](https://www.mdpi.com/1424-8220/22/22/8888)
+
+            See the [GitHub notebook](https://github.com/ThomasAston/movetru/blob/master/workbooks/demo_realtime.ipynb) for in-depth explanation.
+            """
+        )
     
     def render_player_selector(self, players: list) -> Optional[str]:
         """

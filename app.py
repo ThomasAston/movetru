@@ -58,16 +58,41 @@ status = ui.create_status_placeholder()
 chart = ui.create_chart_placeholders(selected_sensors)
 
 # Metrics placeholders
-st.subheader("Gait Metrics")
-col1, col2 = st.columns(2)
-with col1:
-    st.write("**Recent (Last 5s)**")
-    metrics_recent_lf = st.empty()
-    metrics_recent_rf = st.empty()
-with col2:
-    st.write("**Overall Session**")
-    metrics_overall_lf = st.empty()
-    metrics_overall_rf = st.empty()
+st.markdown("---")  # Add a separator line
+st.subheader("📊 Gait Metrics")
+
+# Create tabs for different views
+tab1, tab2 = st.tabs(["📈 Recent (Last 5s)", "📊 Overall Session"])
+
+with tab1:
+    col_lf_recent, col_rf_recent = st.columns(2)
+    with col_lf_recent:
+        st.markdown("#### 🦶 Left Foot")
+        recent_lf_strides = st.empty()
+        recent_lf_stance = st.empty()
+        recent_lf_swing = st.empty()
+        recent_lf_stride = st.empty()
+    with col_rf_recent:
+        st.markdown("#### 🦶 Right Foot")
+        recent_rf_strides = st.empty()
+        recent_rf_stance = st.empty()
+        recent_rf_swing = st.empty()
+        recent_rf_stride = st.empty()
+
+with tab2:
+    col_lf_overall, col_rf_overall = st.columns(2)
+    with col_lf_overall:
+        st.markdown("#### 🦶 Left Foot")
+        overall_lf_strides = st.empty()
+        overall_lf_stance = st.empty()
+        overall_lf_swing = st.empty()
+        overall_lf_stride = st.empty()
+    with col_rf_overall:
+        st.markdown("#### 🦶 Right Foot")
+        overall_rf_strides = st.empty()
+        overall_rf_stance = st.empty()
+        overall_rf_swing = st.empty()
+        overall_rf_stride = st.empty()
 
 # Initialize session state
 if 'streaming' not in st.session_state:
@@ -202,37 +227,109 @@ async def stream_imu_data(selected_player: str, sensors: list, start_from_time: 
             metrics_lf_overall = gait_detector.get_metrics('left')
             metrics_rf_overall = gait_detector.get_metrics('right')
             
-            # Format and display metrics
-            def format_metrics(metrics, label):
-                lines = [f"**{label}**"]
-                lines.append(f"Strides: {metrics['total_strides']}")
-                if metrics['stance_time_mean'] is not None:
-                    lines.append(f"Stance: {metrics['stance_time_mean']:.3f}s ± {metrics['stance_time_std']:.3f}s")
-                if metrics['swing_time_mean'] is not None:
-                    lines.append(f"Swing: {metrics['swing_time_mean']:.3f}s ± {metrics['swing_time_std']:.3f}s")
-                if metrics['stride_time_mean'] is not None:
-                    lines.append(f"Stride: {metrics['stride_time_mean']:.3f}s ± {metrics['stride_time_std']:.3f}s")
-                return "\n\n".join(lines)
-            
-            # Format metrics
-            recent_lf_text = format_metrics(metrics_lf_recent, "Left Foot")
-            recent_rf_text = format_metrics(metrics_rf_recent, "Right Foot")
-            overall_lf_text = format_metrics(metrics_lf_overall, "Left Foot")
-            overall_rf_text = format_metrics(metrics_rf_overall, "Right Foot")
-            
             # Save to session state for freezing
             st.session_state.last_metrics = {
-                'recent_lf': recent_lf_text,
-                'recent_rf': recent_rf_text,
-                'overall_lf': overall_lf_text,
-                'overall_rf': overall_rf_text
+                'recent_lf': metrics_lf_recent,
+                'recent_rf': metrics_rf_recent,
+                'overall_lf': metrics_lf_overall,
+                'overall_rf': metrics_rf_overall
             }
             
-            # Display metrics
-            metrics_recent_lf.markdown(recent_lf_text)
-            metrics_recent_rf.markdown(recent_rf_text)
-            metrics_overall_lf.markdown(overall_lf_text)
-            metrics_overall_rf.markdown(overall_rf_text)
+            # Display recent metrics (Left Foot)
+            recent_lf_strides.metric(
+                "Total Strides",
+                value=metrics_lf_recent['total_strides']
+            )
+            recent_lf_stance.metric(
+                "Stance Time",
+                value=f"{metrics_lf_recent['stance_time_mean']:.3f} s" if metrics_lf_recent['stance_time_mean'] is not None else "--",
+                delta=f"± {metrics_lf_recent['stance_time_std']:.3f} s" if metrics_lf_recent['stance_time_std'] is not None else None,
+                delta_color="off"
+            )
+            recent_lf_swing.metric(
+                "Swing Time",
+                value=f"{metrics_lf_recent['swing_time_mean']:.3f} s" if metrics_lf_recent['swing_time_mean'] is not None else "--",
+                delta=f"± {metrics_lf_recent['swing_time_std']:.3f} s" if metrics_lf_recent['swing_time_std'] is not None else None,
+                delta_color="off"
+            )
+            recent_lf_stride.metric(
+                "Stride Time",
+                value=f"{metrics_lf_recent['stride_time_mean']:.3f} s" if metrics_lf_recent['stride_time_mean'] is not None else "--",
+                delta=f"± {metrics_lf_recent['stride_time_std']:.3f} s" if metrics_lf_recent['stride_time_std'] is not None else None,
+                delta_color="off"
+            )
+            
+            # Display recent metrics (Right Foot)
+            recent_rf_strides.metric(
+                "Total Strides",
+                value=metrics_rf_recent['total_strides']
+            )
+            recent_rf_stance.metric(
+                "Stance Time",
+                value=f"{metrics_rf_recent['stance_time_mean']:.3f} s" if metrics_rf_recent['stance_time_mean'] is not None else "--",
+                delta=f"± {metrics_rf_recent['stance_time_std']:.3f} s" if metrics_rf_recent['stance_time_std'] is not None else None,
+                delta_color="off"
+            )
+            recent_rf_swing.metric(
+                "Swing Time",
+                value=f"{metrics_rf_recent['swing_time_mean']:.3f} s" if metrics_rf_recent['swing_time_mean'] is not None else "--",
+                delta=f"± {metrics_rf_recent['swing_time_std']:.3f} s" if metrics_rf_recent['swing_time_std'] is not None else None,
+                delta_color="off"
+            )
+            recent_rf_stride.metric(
+                "Stride Time",
+                value=f"{metrics_rf_recent['stride_time_mean']:.3f} s" if metrics_rf_recent['stride_time_mean'] is not None else "--",
+                delta=f"± {metrics_rf_recent['stride_time_std']:.3f} s" if metrics_rf_recent['stride_time_std'] is not None else None,
+                delta_color="off"
+            )
+            
+            # Display overall metrics (Left Foot)
+            overall_lf_strides.metric(
+                "Total Strides",
+                value=metrics_lf_overall['total_strides']
+            )
+            overall_lf_stance.metric(
+                "Stance Time",
+                value=f"{metrics_lf_overall['stance_time_mean']:.3f} s" if metrics_lf_overall['stance_time_mean'] is not None else "--",
+                delta=f"± {metrics_lf_overall['stance_time_std']:.3f} s" if metrics_lf_overall['stance_time_std'] is not None else None,
+                delta_color="off"
+            )
+            overall_lf_swing.metric(
+                "Swing Time",
+                value=f"{metrics_lf_overall['swing_time_mean']:.3f} s" if metrics_lf_overall['swing_time_mean'] is not None else "--",
+                delta=f"± {metrics_lf_overall['swing_time_std']:.3f} s" if metrics_lf_overall['swing_time_std'] is not None else None,
+                delta_color="off"
+            )
+            overall_lf_stride.metric(
+                "Stride Time",
+                value=f"{metrics_lf_overall['stride_time_mean']:.3f} s" if metrics_lf_overall['stride_time_mean'] is not None else "--",
+                delta=f"± {metrics_lf_overall['stride_time_std']:.3f} s" if metrics_lf_overall['stride_time_std'] is not None else None,
+                delta_color="off"
+            )
+            
+            # Display overall metrics (Right Foot)
+            overall_rf_strides.metric(
+                "Total Strides",
+                value=metrics_rf_overall['total_strides']
+            )
+            overall_rf_stance.metric(
+                "Stance Time",
+                value=f"{metrics_rf_overall['stance_time_mean']:.3f} s" if metrics_rf_overall['stance_time_mean'] is not None else "--",
+                delta=f"± {metrics_rf_overall['stance_time_std']:.3f} s" if metrics_rf_overall['stance_time_std'] is not None else None,
+                delta_color="off"
+            )
+            overall_rf_swing.metric(
+                "Swing Time",
+                value=f"{metrics_rf_overall['swing_time_mean']:.3f} s" if metrics_rf_overall['swing_time_mean'] is not None else "--",
+                delta=f"± {metrics_rf_overall['swing_time_std']:.3f} s" if metrics_rf_overall['swing_time_std'] is not None else None,
+                delta_color="off"
+            )
+            overall_rf_stride.metric(
+                "Stride Time",
+                value=f"{metrics_rf_overall['stride_time_mean']:.3f} s" if metrics_rf_overall['stride_time_mean'] is not None else "--",
+                delta=f"± {metrics_rf_overall['stride_time_std']:.3f} s" if metrics_rf_overall['stride_time_std'] is not None else None,
+                delta_color="off"
+            )
             
             # Update status and calculate timing
             current_real_time = time.time()
@@ -293,24 +390,119 @@ if not st.session_state.streaming:
     # Display metrics
     if st.session_state.last_metrics is not None:
         # Show frozen metrics from last stream
-        metrics_recent_lf.markdown(st.session_state.last_metrics['recent_lf'])
-        metrics_recent_rf.markdown(st.session_state.last_metrics['recent_rf'])
-        metrics_overall_lf.markdown(st.session_state.last_metrics['overall_lf'])
-        metrics_overall_rf.markdown(st.session_state.last_metrics['overall_rf'])
+        metrics_lf_recent = st.session_state.last_metrics['recent_lf']
+        metrics_rf_recent = st.session_state.last_metrics['recent_rf']
+        metrics_lf_overall = st.session_state.last_metrics['overall_lf']
+        metrics_rf_overall = st.session_state.last_metrics['overall_rf']
+        
+        # Display recent metrics (Left Foot)
+        recent_lf_strides.metric("Total Strides", value=metrics_lf_recent['total_strides'])
+        recent_lf_stance.metric(
+            "Stance Time",
+            value=f"{metrics_lf_recent['stance_time_mean']:.3f} s" if metrics_lf_recent['stance_time_mean'] is not None else "--",
+            delta=f"± {metrics_lf_recent['stance_time_std']:.3f} s" if metrics_lf_recent['stance_time_std'] is not None else None,
+            delta_color="off"
+        )
+        recent_lf_swing.metric(
+            "Swing Time",
+            value=f"{metrics_lf_recent['swing_time_mean']:.3f} s" if metrics_lf_recent['swing_time_mean'] is not None else "--",
+            delta=f"± {metrics_lf_recent['swing_time_std']:.3f} s" if metrics_lf_recent['swing_time_std'] is not None else None,
+            delta_color="off"
+        )
+        recent_lf_stride.metric(
+            "Stride Time",
+            value=f"{metrics_lf_recent['stride_time_mean']:.3f} s" if metrics_lf_recent['stride_time_mean'] is not None else "--",
+            delta=f"± {metrics_lf_recent['stride_time_std']:.3f} s" if metrics_lf_recent['stride_time_std'] is not None else None,
+            delta_color="off"
+        )
+        
+        # Display recent metrics (Right Foot)
+        recent_rf_strides.metric("Total Strides", value=metrics_rf_recent['total_strides'])
+        recent_rf_stance.metric(
+            "Stance Time",
+            value=f"{metrics_rf_recent['stance_time_mean']:.3f} s" if metrics_rf_recent['stance_time_mean'] is not None else "--",
+            delta=f"± {metrics_rf_recent['stance_time_std']:.3f} s" if metrics_rf_recent['stance_time_std'] is not None else None,
+            delta_color="off"
+        )
+        recent_rf_swing.metric(
+            "Swing Time",
+            value=f"{metrics_rf_recent['swing_time_mean']:.3f} s" if metrics_rf_recent['swing_time_mean'] is not None else "--",
+            delta=f"± {metrics_rf_recent['swing_time_std']:.3f} s" if metrics_rf_recent['swing_time_std'] is not None else None,
+            delta_color="off"
+        )
+        recent_rf_stride.metric(
+            "Stride Time",
+            value=f"{metrics_rf_recent['stride_time_mean']:.3f} s" if metrics_rf_recent['stride_time_mean'] is not None else "--",
+            delta=f"± {metrics_rf_recent['stride_time_std']:.3f} s" if metrics_rf_recent['stride_time_std'] is not None else None,
+            delta_color="off"
+        )
+        
+        # Display overall metrics (Left Foot)
+        overall_lf_strides.metric("Total Strides", value=metrics_lf_overall['total_strides'])
+        overall_lf_stance.metric(
+            "Stance Time",
+            value=f"{metrics_lf_overall['stance_time_mean']:.3f} s" if metrics_lf_overall['stance_time_mean'] is not None else "--",
+            delta=f"± {metrics_lf_overall['stance_time_std']:.3f} s" if metrics_lf_overall['stance_time_std'] is not None else None,
+            delta_color="off"
+        )
+        overall_lf_swing.metric(
+            "Swing Time",
+            value=f"{metrics_lf_overall['swing_time_mean']:.3f} s" if metrics_lf_overall['swing_time_mean'] is not None else "--",
+            delta=f"± {metrics_lf_overall['swing_time_std']:.3f} s" if metrics_lf_overall['swing_time_std'] is not None else None,
+            delta_color="off"
+        )
+        overall_lf_stride.metric(
+            "Stride Time",
+            value=f"{metrics_lf_overall['stride_time_mean']:.3f} s" if metrics_lf_overall['stride_time_mean'] is not None else "--",
+            delta=f"± {metrics_lf_overall['stride_time_std']:.3f} s" if metrics_lf_overall['stride_time_std'] is not None else None,
+            delta_color="off"
+        )
+        
+        # Display overall metrics (Right Foot)
+        overall_rf_strides.metric("Total Strides", value=metrics_rf_overall['total_strides'])
+        overall_rf_stance.metric(
+            "Stance Time",
+            value=f"{metrics_rf_overall['stance_time_mean']:.3f} s" if metrics_rf_overall['stance_time_mean'] is not None else "--",
+            delta=f"± {metrics_rf_overall['stance_time_std']:.3f} s" if metrics_rf_overall['stance_time_std'] is not None else None,
+            delta_color="off"
+        )
+        overall_rf_swing.metric(
+            "Swing Time",
+            value=f"{metrics_rf_overall['swing_time_mean']:.3f} s" if metrics_rf_overall['swing_time_mean'] is not None else "--",
+            delta=f"± {metrics_rf_overall['swing_time_std']:.3f} s" if metrics_rf_overall['swing_time_std'] is not None else None,
+            delta_color="off"
+        )
+        overall_rf_stride.metric(
+            "Stride Time",
+            value=f"{metrics_rf_overall['stride_time_mean']:.3f} s" if metrics_rf_overall['stride_time_mean'] is not None else "--",
+            delta=f"± {metrics_rf_overall['stride_time_std']:.3f} s" if metrics_rf_overall['stride_time_std'] is not None else None,
+            delta_color="off"
+        )
     else:
         # Show empty metrics before first stream
-        def format_empty_metrics(label):
-            lines = [f"**{label}**"]
-            lines.append(f"Strides: --")
-            lines.append(f"Stance: --")
-            lines.append(f"Swing: --")
-            lines.append(f"Stride: --")
-            return "\n\n".join(lines)
+        # Recent metrics (Left Foot)
+        recent_lf_strides.metric("Total Strides", value="--")
+        recent_lf_stance.metric("Stance Time", value="--")
+        recent_lf_swing.metric("Swing Time", value="--")
+        recent_lf_stride.metric("Stride Time", value="--")
         
-        metrics_recent_lf.markdown(format_empty_metrics("Left Foot"))
-        metrics_recent_rf.markdown(format_empty_metrics("Right Foot"))
-        metrics_overall_lf.markdown(format_empty_metrics("Left Foot"))
-        metrics_overall_rf.markdown(format_empty_metrics("Right Foot"))
+        # Recent metrics (Right Foot)
+        recent_rf_strides.metric("Total Strides", value="--")
+        recent_rf_stance.metric("Stance Time", value="--")
+        recent_rf_swing.metric("Swing Time", value="--")
+        recent_rf_stride.metric("Stride Time", value="--")
+        
+        # Overall metrics (Left Foot)
+        overall_lf_strides.metric("Total Strides", value="--")
+        overall_lf_stance.metric("Stance Time", value="--")
+        overall_lf_swing.metric("Swing Time", value="--")
+        overall_lf_stride.metric("Stride Time", value="--")
+        
+        # Overall metrics (Right Foot)
+        overall_rf_strides.metric("Total Strides", value="--")
+        overall_rf_stance.metric("Stance Time", value="--")
+        overall_rf_swing.metric("Swing Time", value="--")
+        overall_rf_stride.metric("Stride Time", value="--")
     
     if st.session_state.last_chart is None:
         status.info("Ready to stream. Click 'Start Stream' to begin.")
