@@ -5,6 +5,7 @@ from .data_loader import IMUDataLoader
 from .stream_processor import IMUStreamProcessor
 from .chart_renderer import ChartRenderer
 from .ui_components import IMUStreamUI
+from .gait_detector import GaitEventDetector
 
 
 __all__ = [
@@ -13,5 +14,6 @@ __all__ = [
     'IMUDataLoader',
     'IMUStreamProcessor',
     'ChartRenderer',
-    'IMUStreamUI'
+    'IMUStreamUI',
+    'GaitEventDetector'
 ]

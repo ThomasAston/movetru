@@ -20,6 +20,13 @@ class StreamConfig:
     ACCEL_MIN_RANGE: float = 2.0  # Minimum y-axis range for accelerometer
     DYNAMIC_RANGE_EXPANSION: float = 0.1  # Expand range by 10% when exceeded
     FILTER_WINDOW_SIZE: int = 15  # Samples used in moving average filter
+    
+    # Gait detection parameters
+    MSW_THRESHOLD: float = -115.0  # Mid-swing threshold (deg/s)
+    ZC_THRESHOLD: float = 0.0  # Zero-crossing threshold (deg/s)
+    MAX_STRIDE_TIME: float = 2.5  # Maximum valid stride duration (seconds)
+    MIN_STRIDE_TIME: float = 0.1  # Minimum valid stride duration (seconds)
+    METRICS_WINDOW: float = 5.0  # Time window for recent metrics (seconds)
 
 
 @dataclass

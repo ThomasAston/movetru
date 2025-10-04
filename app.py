@@ -12,7 +12,8 @@ from src.imu_streaming import (
     IMUDataLoader,
     IMUStreamProcessor,
     ChartRenderer,
-    IMUStreamUI
+    IMUStreamUI,
+    GaitEventDetector
 )
 
 # Initialize configurations
@@ -41,9 +42,32 @@ start_time, start_stream, stop_stream = ui.render_stream_controls()
 # Initialize processor
 processor = IMUStreamProcessor(stream_config)
 
+# Initialize gait detector
+gait_detector = GaitEventDetector(
+    fs=stream_config.SAMPLING_RATE,
+    msw_threshold=stream_config.MSW_THRESHOLD,
+    zc_threshold=stream_config.ZC_THRESHOLD,
+    ma_window=stream_config.FILTER_WINDOW_SIZE,
+    max_buffer_size=stream_config.SAMPLING_RATE * 5,
+    max_stride_time=stream_config.MAX_STRIDE_TIME,
+    min_stride_time=stream_config.MIN_STRIDE_TIME,
+)
+
 # Status and chart placeholders
 status = ui.create_status_placeholder()
 chart_lf, chart_rf = ui.create_chart_placeholders(selected_sensors)
+
+# Metrics placeholders
+st.subheader("Gait Metrics")
+col1, col2 = st.columns(2)
+with col1:
+    st.write("**Recent (Last 5s)**")
+    metrics_recent_lf = st.empty()
+    metrics_recent_rf = st.empty()
+with col2:
+    st.write("**Overall Session**")
+    metrics_overall_lf = st.empty()
+    metrics_overall_rf = st.empty()
 
 
 async def stream_imu_data(selected_player: str, sensors: list, start_from_time: float = 0.0):
@@ -74,6 +98,9 @@ async def stream_imu_data(selected_player: str, sensors: list, start_from_time: 
     # Initialize processor windows
     processor.initialize_windows(stream_config.DEFAULT_WINDOW_SIZE, sensors)
     
+    # Reset gait detector for new session
+    gait_detector.reset()
+    
     # Calculate y-axis ranges based on a larger sample to ensure they cover the data
     status.info("Calculating stable y-axis ranges...")
     sample_window_for_range = int(stream_config.SAMPLING_RATE * stream_config.RANGE_CALCULATION_WINDOW)
@@ -103,10 +130,23 @@ async def stream_imu_data(selected_player: str, sensors: list, start_from_time: 
         
         # Update windows using processor
         processor.update_windows(row_lf, row_rf, sensors)
+        
+        # Process gait events
+        events = gait_detector.process_sample(
+            lf_gyro_y=row_lf['Gyro Y'],
+            rf_gyro_y=row_rf['Gyro Y'],
+            lf_time=current_time_lf,
+            rf_time=current_time_rf
+        )
+        
         sample_count += 1
         
         # Only update charts every UPDATE_INTERVAL samples for better performance
         if sample_count >= stream_config.UPDATE_INTERVAL:
+            # Get all detected events for plotting
+            events_lf = gait_detector.get_all_events('left')
+            events_rf = gait_detector.get_all_events('right')
+            
             # Prepare all figures first, then update both charts together for better sync
             figs_lf = []
             figs_rf = []
@@ -130,12 +170,12 @@ async def stream_imu_data(selected_player: str, sensors: list, start_from_time: 
                 y_range_lf = processor.y_ranges_lf[sensor]
                 y_range_rf = processor.y_ranges_rf[sensor]
                 
-                # Create charts using renderer
+                # Create charts with events using renderer
                 fig_lf = renderer.create_sensor_chart(
-                    times_lf_display, values_lf_display, y_range_lf, sensor, 'LF'
+                    times_lf_display, values_lf_display, y_range_lf, sensor, 'LF', events_lf
                 )
                 fig_rf = renderer.create_sensor_chart(
-                    times_rf_display, values_rf_display, y_range_rf, sensor, 'RF'
+                    times_rf_display, values_rf_display, y_range_rf, sensor, 'RF', events_rf
                 )
                 
                 figs_lf.append(fig_lf)
@@ -150,6 +190,29 @@ async def stream_imu_data(selected_player: str, sensors: list, start_from_time: 
                 for fig in figs_rf:
                     chart_rf.plotly_chart(fig, use_container_width=True)
             
+            # Update gait metrics
+            metrics_lf_recent = gait_detector.get_metrics('left', window_seconds=stream_config.METRICS_WINDOW)
+            metrics_rf_recent = gait_detector.get_metrics('right', window_seconds=stream_config.METRICS_WINDOW)
+            metrics_lf_overall = gait_detector.get_metrics('left')
+            metrics_rf_overall = gait_detector.get_metrics('right')
+            
+            # Format and display metrics
+            def format_metrics(metrics, label):
+                lines = [f"**{label}**"]
+                lines.append(f"Strides: {metrics['total_strides']}")
+                if metrics['stance_time_mean'] is not None:
+                    lines.append(f"Stance: {metrics['stance_time_mean']:.3f}s ± {metrics['stance_time_std']:.3f}s")
+                if metrics['swing_time_mean'] is not None:
+                    lines.append(f"Swing: {metrics['swing_time_mean']:.3f}s ± {metrics['swing_time_std']:.3f}s")
+                if metrics['stride_time_mean'] is not None:
+                    lines.append(f"Stride: {metrics['stride_time_mean']:.3f}s ± {metrics['stride_time_std']:.3f}s")
+                return "\n\n".join(lines)
+            
+            metrics_recent_lf.markdown(format_metrics(metrics_lf_recent, "Left Foot"))
+            metrics_recent_rf.markdown(format_metrics(metrics_rf_recent, "Right Foot"))
+            metrics_overall_lf.markdown(format_metrics(metrics_lf_overall, "Left Foot"))
+            metrics_overall_rf.markdown(format_metrics(metrics_rf_overall, "Right Foot"))
+            
             # Update status and calculate timing
             current_real_time = time.time()
             elapsed_real_time = current_real_time - last_update_time
@@ -162,7 +225,8 @@ async def stream_imu_data(selected_player: str, sensors: list, start_from_time: 
             status.info(
                 f"Sample {row_idx + 1}/{min_len} | "
                 f"LF Time: {current_time_lf:.2f}s | RF Time: {current_time_rf:.2f}s | "
-                f"Target Speed: {stream_config.DEFAULT_SPEED}x | Actual: {actual_speed:.1f}x"
+                f"Target Speed: {stream_config.DEFAULT_SPEED}x | Actual: {actual_speed:.1f}x | "
+                f"Events: L:{len(events_lf['msw'])} R:{len(events_rf['msw'])} MSW"
             )
             
             # Calculate delay accounting for rendering time
