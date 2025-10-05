@@ -9,11 +9,11 @@ class StreamConfig:
     """Configuration for data streaming and processing."""
     
     DATA_DIR: Path = Path("data/raw/imu")
-    UPDATE_INTERVAL: int = 25  # Update chart every N samples
     SAMPLING_RATE: int = 256  # Hz
-    DOWNSAMPLE_FACTOR: int = 2  # Display every Nth point (increased for smoother rendering)
-    DEFAULT_WINDOW_SIZE: int = 1280  # Number of samples in rolling window (5 seconds at 256 Hz)
-    DEFAULT_SPEED: float = 1.0  # Playback speed multiplier
+    UPDATE_INTERVAL: int = SAMPLING_RATE // 10  # Update chart every N samples
+    DOWNSAMPLE_FACTOR: int = 4  # Display every Nth point (increased for smoother rendering)
+    DEFAULT_WINDOW_SIZE: int = SAMPLING_RATE * 3 # 5 seconds
+    DEFAULT_SPEED: float = 1  # Playback speed multiplier (1 = real-time)
     RANGE_CALCULATION_WINDOW: int = 30  # seconds - for y-axis range calculation
     Y_AXIS_PADDING: float = 0.3  # Padding around data range (30%)
     GYRO_MIN_RANGE: float = 400.0  # Minimum y-axis range for gyroscope
@@ -26,10 +26,9 @@ class StreamConfig:
     ZC_THRESHOLD: float = 0.0  # Zero-crossing threshold (deg/s)
     MAX_STRIDE_TIME: float = 2.5  # Maximum valid stride duration (seconds)
     MIN_STRIDE_TIME: float = 0.1  # Minimum valid stride duration (seconds)
-    METRICS_WINDOW: float = 5.0  # Time window for recent metrics (seconds)
+    METRICS_WINDOW: float = 10.0  # Time window for recent metrics (seconds)
     EVENT_MARKER_OPACITY: float = 0.8  # Opacity for event markers (reduces visual pop)
-    EVENT_UPDATE_INTERVAL: int = 10  # Update event markers every N chart updates (reduces juddering)
-    EVENT_UPDATE_INTERVAL: int = 3  # Update event markers every N chart updates (reduces juddering)
+    EVENT_UPDATE_INTERVAL: int = 2  # Update event markers every N chart updates (reduces juddering)
 
 
 @dataclass

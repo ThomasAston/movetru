@@ -309,13 +309,32 @@ class GaitEventDetector:
         msw_times = np.array(foot_state['msw_times'])
 
         # Apply time window filter if requested
-        if window_seconds is not None and len(msw_times) > 0:
-            current_time = msw_times[-1]
+        # Use the most recent data timestamp, not the last event time
+        # This ensures metrics go to zero when person is stationary
+        if window_seconds is not None and len(foot_state['all_times']) > 0:
+            current_time = foot_state['all_times'][-1]
             cutoff_time = current_time - window_seconds
 
-            fs_times = fs_times[fs_times >= cutoff_time]
-            fo_times = fo_times[fo_times >= cutoff_time]
-            msw_times = msw_times[msw_times >= cutoff_time]
+            # Filter events that fall within the time window
+            # Important: MSW events define stride boundaries, so we filter based on MSW times
+            # to maintain proper event alignment
+            msw_mask = msw_times >= cutoff_time
+            
+            # Find which stride index corresponds to the cutoff time
+            # FS and FO events at index i belong to stride i (between MSW[i] and MSW[i+1])
+            if np.any(msw_mask):
+                first_kept_stride = np.where(msw_mask)[0][0]
+                # Keep MSW events from cutoff onwards
+                msw_times = msw_times[msw_mask]
+                # Keep FS/FO events from the first kept stride onwards
+                # This ensures FS and FO are properly paired within valid strides
+                fs_times = fs_times[first_kept_stride:]
+                fo_times = fo_times[first_kept_stride:]
+            else:
+                # No events in window
+                msw_times = np.array([])
+                fs_times = np.array([])
+                fo_times = np.array([])
 
         metrics = {
             'total_strides': len(msw_times),
@@ -325,29 +344,58 @@ class GaitEventDetector:
             'swing_time_std': None,
             'stride_time_mean': None,
             'stride_time_std': None,
+            'cadence': None,
+            'stride_time_cv': None,
+            'stance_swing_ratio': None,
+            'contact_time_percent': None,
         }
 
         # Calculate stance time (FS to FO)
+        stance_times = None
         if len(fs_times) > 0 and len(fo_times) > 0:
             min_len = min(len(fs_times), len(fo_times))
             stance_times = fo_times[:min_len] - fs_times[:min_len]
+            # Filter out any negative stance times (these indicate misaligned events)
+            stance_times = stance_times[stance_times > 0]
             if len(stance_times) > 0:
                 metrics['stance_time_mean'] = float(np.mean(stance_times))
                 metrics['stance_time_std'] = float(np.std(stance_times))
 
         # Calculate swing time (FO to next FS)
+        swing_times = None
         if len(fs_times) > 1 and len(fo_times) > 0:
             min_len = min(len(fs_times) - 1, len(fo_times))
             swing_times = fs_times[1:min_len + 1] - fo_times[:min_len]
+            # Filter out any negative swing times (these indicate misaligned events)
+            swing_times = swing_times[swing_times > 0]
             if len(swing_times) > 0:
                 metrics['swing_time_mean'] = float(np.mean(swing_times))
                 metrics['swing_time_std'] = float(np.std(swing_times))
 
         # Calculate stride time (MSW to next MSW)
+        stride_times = None
         if len(msw_times) > 1:
             stride_times = np.diff(msw_times)
             metrics['stride_time_mean'] = float(np.mean(stride_times))
             metrics['stride_time_std'] = float(np.std(stride_times))
+            
+            # Cadence (steps per minute) - each stride = 2 steps
+            metrics['cadence'] = float(60.0 / np.mean(stride_times) * 2)
+            
+            # Stride time variability (Coefficient of Variation)
+            # Higher CV indicates less consistent stride pattern (injury risk indicator)
+            if metrics['stride_time_mean'] > 0:
+                metrics['stride_time_cv'] = float((np.std(stride_times) / metrics['stride_time_mean']) * 100)
+
+        # Stance/Swing ratio - important for gait efficiency and balance
+        # Typical ratio is around 60/40 (stance/swing) for walking
+        if metrics['stance_time_mean'] is not None and metrics['swing_time_mean'] is not None:
+            metrics['stance_swing_ratio'] = float(metrics['stance_time_mean'] / metrics['swing_time_mean'])
+        
+        # Contact time as percentage of stride time
+        # Useful for injury prevention - higher contact times can indicate fatigue
+        if metrics['stance_time_mean'] is not None and metrics['stride_time_mean'] is not None:
+            metrics['contact_time_percent'] = float((metrics['stance_time_mean'] / metrics['stride_time_mean']) * 100)
 
         return metrics
 
@@ -368,3 +416,53 @@ class GaitEventDetector:
             'fo': foot_state['foot_off_times'].copy(),
             'ms': foot_state['mid_stance_times'].copy(),
         }
+    
+    def get_symmetry_metrics(self, window_seconds: Optional[float] = None) -> Dict:
+        """
+        Calculate gait symmetry metrics between left and right feet.
+        
+        Asymmetry is a key indicator for injury risk and rehabilitation progress.
+        
+        Args:
+            window_seconds: If provided, only calculate metrics for the last N seconds.
+                          If None, calculate for all data.
+        
+        Returns:
+            Dictionary containing symmetry metrics
+        """
+        metrics_left = self.get_metrics('left', window_seconds)
+        metrics_right = self.get_metrics('right', window_seconds)
+        
+        symmetry = {
+            'stride_time_symmetry': None,
+            'stance_time_symmetry': None,
+            'swing_time_symmetry': None,
+        }
+        
+        # Calculate Gait Symmetry Index (GSI) for each metric
+        # GSI = |Left - Right| / (0.5 * (Left + Right)) * 100
+        # Values closer to 0% indicate better symmetry
+        # Values > 10% may indicate pathological gait or injury
+        
+        if metrics_left['stride_time_mean'] is not None and metrics_right['stride_time_mean'] is not None:
+            left_val = metrics_left['stride_time_mean']
+            right_val = metrics_right['stride_time_mean']
+            symmetry['stride_time_symmetry'] = float(
+                abs(left_val - right_val) / (0.5 * (left_val + right_val)) * 100
+            )
+        
+        if metrics_left['stance_time_mean'] is not None and metrics_right['stance_time_mean'] is not None:
+            left_val = metrics_left['stance_time_mean']
+            right_val = metrics_right['stance_time_mean']
+            symmetry['stance_time_symmetry'] = float(
+                abs(left_val - right_val) / (0.5 * (left_val + right_val)) * 100
+            )
+        
+        if metrics_left['swing_time_mean'] is not None and metrics_right['swing_time_mean'] is not None:
+            left_val = metrics_left['swing_time_mean']
+            right_val = metrics_right['swing_time_mean']
+            symmetry['swing_time_symmetry'] = float(
+                abs(left_val - right_val) / (0.5 * (left_val + right_val)) * 100
+            )
+        
+        return symmetry

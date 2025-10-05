@@ -16,6 +16,84 @@ from src.imu_streaming import (
     GaitEventDetector
 )
 
+# Helper functions for metric display
+def get_metric_status(value, metric_type):
+    """
+    Determine status (good/acceptable/poor) based on metric value and type.
+    Returns tuple: (emoji, status_text)
+    """
+    if value is None:
+        return "", ""
+    
+    if metric_type == 'stride_variability':
+        # Lower is better (% CV)
+        if value < 3:
+            return "🟢", "Excellent"
+        elif value < 5:
+            return "🟡", "Acceptable"
+        else:
+            return "🔴", "High"
+    
+    elif metric_type == 'symmetry':
+        # Lower is better (%)
+        if value < 5:
+            return "🟢", "Excellent"
+        elif value < 10:
+            return "🟡", "Good"
+        else:
+            return "🔴", "Asymmetric"
+    
+    elif metric_type == 'contact_time_walking':
+        # Around 60% is typical for walking
+        if 55 <= value <= 65:
+            return "🟢", "Optimal"
+        elif 50 <= value <= 70:
+            return "🟡", "Acceptable"
+        else:
+            return "🔴", "Atypical"
+    
+    elif metric_type == 'stance_swing_walking':
+        # Around 1.5 is typical for walking
+        if 1.3 <= value <= 1.7:
+            return "🟢", "Optimal"
+        elif 1.0 <= value <= 2.0:
+            return "🟡", "Acceptable"
+        else:
+            return "🔴", "Atypical"
+    
+    elif metric_type == 'cadence_walking':
+        # 100-120 for walking, 160-180 for running
+        if 100 <= value <= 120:
+            return "🟢", "Walking"
+        elif 160 <= value <= 180:
+            return "🟢", "Running"
+        elif 90 <= value <= 130 or 150 <= value <= 190:
+            return "🟡", "Moderate"
+        else:
+            return "🟡", "Variable"
+    
+    return "", ""
+
+def format_metric_value(value, unit, emoji="", status=""):
+    """Format metric value with optional emoji and status."""
+    if value is None:
+        return "--"
+    
+    formatted = f"{value}{unit}"
+    if emoji and status:
+        return f"{emoji} {formatted}"
+    return formatted
+
+# Metric tooltips
+TOOLTIPS = {
+    'cadence': "Steps per minute. Walking: 100-120, Running: 160-180. Higher cadence often improves efficiency and reduces injury risk.",
+    'stride_variability': "Consistency of stride timing (CV%). <3% = Excellent, 3-5% = Acceptable, >5% = High variability may indicate fatigue or injury.",
+    'stride_symmetry': "Left/right balance (%). <5% = Excellent, 5-10% = Good, >10% = Asymmetric (may indicate injury or compensation).",
+    'contact_time': "Ground contact as % of stride. Walking ~60%, Running ~35%. Increasing values may indicate fatigue.",
+    'stance_swing_ratio': "Time on ground vs. in air. Walking ~1.5, Running ~0.5-0.7. Lower ratio = faster pace.",
+    'stride_time': "Time for one complete gait cycle. Consistency (low SD) is important for injury prevention.",
+}
+
 # Initialize configurations
 stream_config = StreamConfig()
 ui_config = UIConfig()
@@ -59,40 +137,62 @@ chart = ui.create_chart_placeholders(selected_sensors)
 
 # Metrics placeholders
 st.markdown("---")  # Add a separator line
-st.subheader("📊 Gait Metrics")
+st.subheader("Metrics")
 
 # Create tabs for different views
-tab1, tab2 = st.tabs(["📈 Recent (Last 5s)", "📊 Overall Session"])
+tab1, tab2 = st.tabs(["📈 Recent (Last 10s)", "📊 Overall Session"])
 
 with tab1:
+    # Overall metrics (combined)
+    st.markdown("#### 🎯 Overall")
+    col_recent_1, col_recent_2, col_recent_3 = st.columns(3)
+    with col_recent_1:
+        recent_total_strides = st.empty()
+        recent_cadence = st.empty()
+    with col_recent_2:
+        recent_stride_variability = st.empty()
+        recent_stride_symmetry = st.empty()
+    with col_recent_3:
+        recent_contact_time = st.empty()
+        recent_stance_swing_ratio = st.empty()
+    
+    # Per-foot details
+    st.markdown("#### 🦶 Per Foot")
     col_lf_recent, col_rf_recent = st.columns(2)
     with col_lf_recent:
-        st.markdown("#### 🦶 Left Foot")
-        recent_lf_strides = st.empty()
-        recent_lf_stance = st.empty()
-        recent_lf_swing = st.empty()
+        st.markdown("**Left Foot**")
         recent_lf_stride = st.empty()
+        recent_lf_contact = st.empty()
     with col_rf_recent:
-        st.markdown("#### 🦶 Right Foot")
-        recent_rf_strides = st.empty()
-        recent_rf_stance = st.empty()
-        recent_rf_swing = st.empty()
+        st.markdown("**Right Foot**")
         recent_rf_stride = st.empty()
+        recent_rf_contact = st.empty()
 
 with tab2:
+    # Overall metrics (combined)
+    st.markdown("#### 🎯 Overall")
+    col_overall_1, col_overall_2, col_overall_3 = st.columns(3)
+    with col_overall_1:
+        overall_total_strides = st.empty()
+        overall_cadence = st.empty()
+    with col_overall_2:
+        overall_stride_variability = st.empty()
+        overall_stride_symmetry = st.empty()
+    with col_overall_3:
+        overall_contact_time = st.empty()
+        overall_stance_swing_ratio = st.empty()
+    
+    # Per-foot details
+    st.markdown("#### 🦶 Per Foot")
     col_lf_overall, col_rf_overall = st.columns(2)
     with col_lf_overall:
-        st.markdown("#### 🦶 Left Foot")
-        overall_lf_strides = st.empty()
-        overall_lf_stance = st.empty()
-        overall_lf_swing = st.empty()
+        st.markdown("**Left Foot**")
         overall_lf_stride = st.empty()
+        overall_lf_contact = st.empty()
     with col_rf_overall:
-        st.markdown("#### 🦶 Right Foot")
-        overall_rf_strides = st.empty()
-        overall_rf_stance = st.empty()
-        overall_rf_swing = st.empty()
+        st.markdown("**Right Foot**")
         overall_rf_stride = st.empty()
+        overall_rf_contact = st.empty()
 
 # Initialize session state
 if 'streaming' not in st.session_state:
@@ -226,109 +326,209 @@ async def stream_imu_data(selected_player: str, sensors: list, start_from_time: 
             metrics_rf_recent = gait_detector.get_metrics('right', window_seconds=stream_config.METRICS_WINDOW)
             metrics_lf_overall = gait_detector.get_metrics('left')
             metrics_rf_overall = gait_detector.get_metrics('right')
+            symmetry_recent = gait_detector.get_symmetry_metrics(window_seconds=stream_config.METRICS_WINDOW)
+            symmetry_overall = gait_detector.get_symmetry_metrics()
             
             # Save to session state for freezing
             st.session_state.last_metrics = {
                 'recent_lf': metrics_lf_recent,
                 'recent_rf': metrics_rf_recent,
                 'overall_lf': metrics_lf_overall,
-                'overall_rf': metrics_rf_overall
+                'overall_rf': metrics_rf_overall,
+                'symmetry_recent': symmetry_recent,
+                'symmetry_overall': symmetry_overall
             }
             
-            # Display recent metrics (Left Foot)
-            recent_lf_strides.metric(
-                "Total Strides",
-                value=metrics_lf_recent['total_strides']
+            # Calculate combined metrics
+            total_strides_recent = metrics_lf_recent['total_strides'] + metrics_rf_recent['total_strides']
+            avg_cadence_recent = None
+            if metrics_lf_recent['cadence'] is not None and metrics_rf_recent['cadence'] is not None:
+                avg_cadence_recent = (metrics_lf_recent['cadence'] + metrics_rf_recent['cadence']) / 2
+            
+            avg_stride_cv_recent = None
+            if metrics_lf_recent['stride_time_cv'] is not None and metrics_rf_recent['stride_time_cv'] is not None:
+                avg_stride_cv_recent = (metrics_lf_recent['stride_time_cv'] + metrics_rf_recent['stride_time_cv']) / 2
+            
+            avg_contact_recent = None
+            if metrics_lf_recent['contact_time_percent'] is not None and metrics_rf_recent['contact_time_percent'] is not None:
+                avg_contact_recent = (metrics_lf_recent['contact_time_percent'] + metrics_rf_recent['contact_time_percent']) / 2
+            
+            avg_stance_swing_recent = None
+            if metrics_lf_recent['stance_swing_ratio'] is not None and metrics_rf_recent['stance_swing_ratio'] is not None:
+                avg_stance_swing_recent = (metrics_lf_recent['stance_swing_ratio'] + metrics_rf_recent['stance_swing_ratio']) / 2
+            
+            # Display recent metrics - Overall with colors
+            recent_total_strides.metric("Total Strides", value=total_strides_recent)
+            
+            # Cadence with color
+            cadence_emoji, cadence_status = get_metric_status(avg_cadence_recent, 'cadence_walking')
+            cadence_display = f"{cadence_emoji} {avg_cadence_recent:.1f}" if avg_cadence_recent is not None else "--"
+            recent_cadence.metric(
+                "Cadence (steps/min)",
+                value=cadence_display,
+                help=TOOLTIPS['cadence']
             )
-            recent_lf_stance.metric(
-                "Stance Time",
-                value=f"{metrics_lf_recent['stance_time_mean']:.3f} s" if metrics_lf_recent['stance_time_mean'] is not None else "--",
-                delta=f"± {metrics_lf_recent['stance_time_std']:.3f} s" if metrics_lf_recent['stance_time_std'] is not None else None,
-                delta_color="off"
+            
+            # Stride Variability with color
+            cv_emoji, cv_status = get_metric_status(avg_stride_cv_recent, 'stride_variability')
+            cv_display = f"{cv_emoji} {avg_stride_cv_recent:.1f}%" if avg_stride_cv_recent is not None else "--"
+            recent_stride_variability.metric(
+                "Stride Variability (CV)",
+                value=cv_display,
+                help=TOOLTIPS['stride_variability']
             )
-            recent_lf_swing.metric(
-                "Swing Time",
-                value=f"{metrics_lf_recent['swing_time_mean']:.3f} s" if metrics_lf_recent['swing_time_mean'] is not None else "--",
-                delta=f"± {metrics_lf_recent['swing_time_std']:.3f} s" if metrics_lf_recent['swing_time_std'] is not None else None,
-                delta_color="off"
+            
+            # Stride Symmetry with color
+            sym_emoji, sym_status = get_metric_status(symmetry_recent['stride_time_symmetry'], 'symmetry')
+            sym_display = f"{sym_emoji} {symmetry_recent['stride_time_symmetry']:.1f}%" if symmetry_recent['stride_time_symmetry'] is not None else "--"
+            recent_stride_symmetry.metric(
+                "Stride Symmetry",
+                value=sym_display,
+                help=TOOLTIPS['stride_symmetry']
             )
+            
+            # Contact Time with color
+            contact_emoji, contact_status = get_metric_status(avg_contact_recent, 'contact_time_walking')
+            contact_display = f"{contact_emoji} {avg_contact_recent:.1f}%" if avg_contact_recent is not None else "--"
+            recent_contact_time.metric(
+                "Avg Contact Time",
+                value=contact_display,
+                help=TOOLTIPS['contact_time']
+            )
+            
+            # Stance/Swing Ratio with color
+            ratio_emoji, ratio_status = get_metric_status(avg_stance_swing_recent, 'stance_swing_walking')
+            ratio_display = f"{ratio_emoji} {avg_stance_swing_recent:.2f}" if avg_stance_swing_recent is not None else "--"
+            recent_stance_swing_ratio.metric(
+                "Stance/Swing Ratio",
+                value=ratio_display,
+                help=TOOLTIPS['stance_swing_ratio']
+            )
+            
+            # Display recent metrics - Per Foot
             recent_lf_stride.metric(
                 "Stride Time",
                 value=f"{metrics_lf_recent['stride_time_mean']:.3f} s" if metrics_lf_recent['stride_time_mean'] is not None else "--",
                 delta=f"± {metrics_lf_recent['stride_time_std']:.3f} s" if metrics_lf_recent['stride_time_std'] is not None else None,
-                delta_color="off"
+                delta_color="off",
+                help=TOOLTIPS['stride_time']
             )
-            
-            # Display recent metrics (Right Foot)
-            recent_rf_strides.metric(
-                "Total Strides",
-                value=metrics_rf_recent['total_strides']
-            )
-            recent_rf_stance.metric(
-                "Stance Time",
-                value=f"{metrics_rf_recent['stance_time_mean']:.3f} s" if metrics_rf_recent['stance_time_mean'] is not None else "--",
-                delta=f"± {metrics_rf_recent['stance_time_std']:.3f} s" if metrics_rf_recent['stance_time_std'] is not None else None,
-                delta_color="off"
-            )
-            recent_rf_swing.metric(
-                "Swing Time",
-                value=f"{metrics_rf_recent['swing_time_mean']:.3f} s" if metrics_rf_recent['swing_time_mean'] is not None else "--",
-                delta=f"± {metrics_rf_recent['swing_time_std']:.3f} s" if metrics_rf_recent['swing_time_std'] is not None else None,
-                delta_color="off"
+            lf_contact_emoji, _ = get_metric_status(metrics_lf_recent['contact_time_percent'], 'contact_time_walking')
+            lf_contact_display = f"{lf_contact_emoji} {metrics_lf_recent['contact_time_percent']:.1f}%" if metrics_lf_recent['contact_time_percent'] is not None else "--"
+            recent_lf_contact.metric(
+                "Contact Time",
+                value=lf_contact_display,
+                help=TOOLTIPS['contact_time']
             )
             recent_rf_stride.metric(
                 "Stride Time",
                 value=f"{metrics_rf_recent['stride_time_mean']:.3f} s" if metrics_rf_recent['stride_time_mean'] is not None else "--",
                 delta=f"± {metrics_rf_recent['stride_time_std']:.3f} s" if metrics_rf_recent['stride_time_std'] is not None else None,
-                delta_color="off"
+                delta_color="off",
+                help=TOOLTIPS['stride_time']
+            )
+            rf_contact_emoji, _ = get_metric_status(metrics_rf_recent['contact_time_percent'], 'contact_time_walking')
+            rf_contact_display = f"{rf_contact_emoji} {metrics_rf_recent['contact_time_percent']:.1f}%" if metrics_rf_recent['contact_time_percent'] is not None else "--"
+            recent_rf_contact.metric(
+                "Contact Time",
+                value=rf_contact_display,
+                help=TOOLTIPS['contact_time']
             )
             
-            # Display overall metrics (Left Foot)
-            overall_lf_strides.metric(
-                "Total Strides",
-                value=metrics_lf_overall['total_strides']
+            # Calculate combined metrics
+            total_strides_overall = metrics_lf_overall['total_strides'] + metrics_rf_overall['total_strides']
+            avg_cadence_overall = None
+            if metrics_lf_overall['cadence'] is not None and metrics_rf_overall['cadence'] is not None:
+                avg_cadence_overall = (metrics_lf_overall['cadence'] + metrics_rf_overall['cadence']) / 2
+            
+            avg_stride_cv_overall = None
+            if metrics_lf_overall['stride_time_cv'] is not None and metrics_rf_overall['stride_time_cv'] is not None:
+                avg_stride_cv_overall = (metrics_lf_overall['stride_time_cv'] + metrics_rf_overall['stride_time_cv']) / 2
+            
+            avg_contact_overall = None
+            if metrics_lf_overall['contact_time_percent'] is not None and metrics_rf_overall['contact_time_percent'] is not None:
+                avg_contact_overall = (metrics_lf_overall['contact_time_percent'] + metrics_rf_overall['contact_time_percent']) / 2
+            
+            avg_stance_swing_overall = None
+            if metrics_lf_overall['stance_swing_ratio'] is not None and metrics_rf_overall['stance_swing_ratio'] is not None:
+                avg_stance_swing_overall = (metrics_lf_overall['stance_swing_ratio'] + metrics_rf_overall['stance_swing_ratio']) / 2
+            
+            # Display overall metrics - Overall with colors
+            overall_total_strides.metric("Total Strides", value=total_strides_overall)
+            
+            # Cadence with color
+            cadence_emoji_o, _ = get_metric_status(avg_cadence_overall, 'cadence_walking')
+            cadence_display_o = f"{cadence_emoji_o} {avg_cadence_overall:.1f}" if avg_cadence_overall is not None else "--"
+            overall_cadence.metric(
+                "Cadence (steps/min)",
+                value=cadence_display_o,
+                help=TOOLTIPS['cadence']
             )
-            overall_lf_stance.metric(
-                "Stance Time",
-                value=f"{metrics_lf_overall['stance_time_mean']:.3f} s" if metrics_lf_overall['stance_time_mean'] is not None else "--",
-                delta=f"± {metrics_lf_overall['stance_time_std']:.3f} s" if metrics_lf_overall['stance_time_std'] is not None else None,
-                delta_color="off"
+            
+            # Stride Variability with color
+            cv_emoji_o, _ = get_metric_status(avg_stride_cv_overall, 'stride_variability')
+            cv_display_o = f"{cv_emoji_o} {avg_stride_cv_overall:.1f}%" if avg_stride_cv_overall is not None else "--"
+            overall_stride_variability.metric(
+                "Stride Variability (CV)",
+                value=cv_display_o,
+                help=TOOLTIPS['stride_variability']
             )
-            overall_lf_swing.metric(
-                "Swing Time",
-                value=f"{metrics_lf_overall['swing_time_mean']:.3f} s" if metrics_lf_overall['swing_time_mean'] is not None else "--",
-                delta=f"± {metrics_lf_overall['swing_time_std']:.3f} s" if metrics_lf_overall['swing_time_std'] is not None else None,
-                delta_color="off"
+            
+            # Stride Symmetry with color
+            sym_emoji_o, _ = get_metric_status(symmetry_overall['stride_time_symmetry'], 'symmetry')
+            sym_display_o = f"{sym_emoji_o} {symmetry_overall['stride_time_symmetry']:.1f}%" if symmetry_overall['stride_time_symmetry'] is not None else "--"
+            overall_stride_symmetry.metric(
+                "Stride Symmetry",
+                value=sym_display_o,
+                help=TOOLTIPS['stride_symmetry']
             )
+            
+            # Contact Time with color
+            contact_emoji_o, _ = get_metric_status(avg_contact_overall, 'contact_time_walking')
+            contact_display_o = f"{contact_emoji_o} {avg_contact_overall:.1f}%" if avg_contact_overall is not None else "--"
+            overall_contact_time.metric(
+                "Avg Contact Time",
+                value=contact_display_o,
+                help=TOOLTIPS['contact_time']
+            )
+            
+            # Stance/Swing Ratio with color
+            ratio_emoji_o, _ = get_metric_status(avg_stance_swing_overall, 'stance_swing_walking')
+            ratio_display_o = f"{ratio_emoji_o} {avg_stance_swing_overall:.2f}" if avg_stance_swing_overall is not None else "--"
+            overall_stance_swing_ratio.metric(
+                "Stance/Swing Ratio",
+                value=ratio_display_o,
+                help=TOOLTIPS['stance_swing_ratio']
+            )
+            
+            # Display overall metrics - Per Foot
             overall_lf_stride.metric(
                 "Stride Time",
                 value=f"{metrics_lf_overall['stride_time_mean']:.3f} s" if metrics_lf_overall['stride_time_mean'] is not None else "--",
                 delta=f"± {metrics_lf_overall['stride_time_std']:.3f} s" if metrics_lf_overall['stride_time_std'] is not None else None,
-                delta_color="off"
+                delta_color="off",
+                help=TOOLTIPS['stride_time']
             )
-            
-            # Display overall metrics (Right Foot)
-            overall_rf_strides.metric(
-                "Total Strides",
-                value=metrics_rf_overall['total_strides']
-            )
-            overall_rf_stance.metric(
-                "Stance Time",
-                value=f"{metrics_rf_overall['stance_time_mean']:.3f} s" if metrics_rf_overall['stance_time_mean'] is not None else "--",
-                delta=f"± {metrics_rf_overall['stance_time_std']:.3f} s" if metrics_rf_overall['stance_time_std'] is not None else None,
-                delta_color="off"
-            )
-            overall_rf_swing.metric(
-                "Swing Time",
-                value=f"{metrics_rf_overall['swing_time_mean']:.3f} s" if metrics_rf_overall['swing_time_mean'] is not None else "--",
-                delta=f"± {metrics_rf_overall['swing_time_std']:.3f} s" if metrics_rf_overall['swing_time_std'] is not None else None,
-                delta_color="off"
+            lf_contact_emoji_o, _ = get_metric_status(metrics_lf_overall['contact_time_percent'], 'contact_time_walking')
+            lf_contact_display_o = f"{lf_contact_emoji_o} {metrics_lf_overall['contact_time_percent']:.1f}%" if metrics_lf_overall['contact_time_percent'] is not None else "--"
+            overall_lf_contact.metric(
+                "Contact Time",
+                value=lf_contact_display_o,
+                help=TOOLTIPS['contact_time']
             )
             overall_rf_stride.metric(
                 "Stride Time",
                 value=f"{metrics_rf_overall['stride_time_mean']:.3f} s" if metrics_rf_overall['stride_time_mean'] is not None else "--",
                 delta=f"± {metrics_rf_overall['stride_time_std']:.3f} s" if metrics_rf_overall['stride_time_std'] is not None else None,
-                delta_color="off"
+                delta_color="off",
+                help=TOOLTIPS['stride_time']
+            )
+            rf_contact_emoji_o, _ = get_metric_status(metrics_rf_overall['contact_time_percent'], 'contact_time_walking')
+            rf_contact_display_o = f"{rf_contact_emoji_o} {metrics_rf_overall['contact_time_percent']:.1f}%" if metrics_rf_overall['contact_time_percent'] is not None else "--"
+            overall_rf_contact.metric(
+                "Contact Time",
+                value=rf_contact_display_o,
+                help=TOOLTIPS['contact_time']
             )
             
             # Update status and calculate timing
@@ -394,115 +594,119 @@ if not st.session_state.streaming:
         metrics_rf_recent = st.session_state.last_metrics['recent_rf']
         metrics_lf_overall = st.session_state.last_metrics['overall_lf']
         metrics_rf_overall = st.session_state.last_metrics['overall_rf']
+        symmetry_recent = st.session_state.last_metrics['symmetry_recent']
+        symmetry_overall = st.session_state.last_metrics['symmetry_overall']
         
-        # Display recent metrics (Left Foot)
-        recent_lf_strides.metric("Total Strides", value=metrics_lf_recent['total_strides'])
-        recent_lf_stance.metric(
-            "Stance Time",
-            value=f"{metrics_lf_recent['stance_time_mean']:.3f} s" if metrics_lf_recent['stance_time_mean'] is not None else "--",
-            delta=f"± {metrics_lf_recent['stance_time_std']:.3f} s" if metrics_lf_recent['stance_time_std'] is not None else None,
-            delta_color="off"
-        )
-        recent_lf_swing.metric(
-            "Swing Time",
-            value=f"{metrics_lf_recent['swing_time_mean']:.3f} s" if metrics_lf_recent['swing_time_mean'] is not None else "--",
-            delta=f"± {metrics_lf_recent['swing_time_std']:.3f} s" if metrics_lf_recent['swing_time_std'] is not None else None,
-            delta_color="off"
-        )
-        recent_lf_stride.metric(
-            "Stride Time",
-            value=f"{metrics_lf_recent['stride_time_mean']:.3f} s" if metrics_lf_recent['stride_time_mean'] is not None else "--",
-            delta=f"± {metrics_lf_recent['stride_time_std']:.3f} s" if metrics_lf_recent['stride_time_std'] is not None else None,
-            delta_color="off"
-        )
+        # Calculate combined metrics for recent
+        total_strides_recent = metrics_lf_recent['total_strides'] + metrics_rf_recent['total_strides']
+        avg_cadence_recent = None
+        if metrics_lf_recent['cadence'] is not None and metrics_rf_recent['cadence'] is not None:
+            avg_cadence_recent = (metrics_lf_recent['cadence'] + metrics_rf_recent['cadence']) / 2
+        avg_stride_cv_recent = None
+        if metrics_lf_recent['stride_time_cv'] is not None and metrics_rf_recent['stride_time_cv'] is not None:
+            avg_stride_cv_recent = (metrics_lf_recent['stride_time_cv'] + metrics_rf_recent['stride_time_cv']) / 2
+        avg_contact_recent = None
+        if metrics_lf_recent['contact_time_percent'] is not None and metrics_rf_recent['contact_time_percent'] is not None:
+            avg_contact_recent = (metrics_lf_recent['contact_time_percent'] + metrics_rf_recent['contact_time_percent']) / 2
+        avg_stance_swing_recent = None
+        if metrics_lf_recent['stance_swing_ratio'] is not None and metrics_rf_recent['stance_swing_ratio'] is not None:
+            avg_stance_swing_recent = (metrics_lf_recent['stance_swing_ratio'] + metrics_rf_recent['stance_swing_ratio']) / 2
         
-        # Display recent metrics (Right Foot)
-        recent_rf_strides.metric("Total Strides", value=metrics_rf_recent['total_strides'])
-        recent_rf_stance.metric(
-            "Stance Time",
-            value=f"{metrics_rf_recent['stance_time_mean']:.3f} s" if metrics_rf_recent['stance_time_mean'] is not None else "--",
-            delta=f"± {metrics_rf_recent['stance_time_std']:.3f} s" if metrics_rf_recent['stance_time_std'] is not None else None,
-            delta_color="off"
-        )
-        recent_rf_swing.metric(
-            "Swing Time",
-            value=f"{metrics_rf_recent['swing_time_mean']:.3f} s" if metrics_rf_recent['swing_time_mean'] is not None else "--",
-            delta=f"± {metrics_rf_recent['swing_time_std']:.3f} s" if metrics_rf_recent['swing_time_std'] is not None else None,
-            delta_color="off"
-        )
-        recent_rf_stride.metric(
-            "Stride Time",
-            value=f"{metrics_rf_recent['stride_time_mean']:.3f} s" if metrics_rf_recent['stride_time_mean'] is not None else "--",
-            delta=f"± {metrics_rf_recent['stride_time_std']:.3f} s" if metrics_rf_recent['stride_time_std'] is not None else None,
-            delta_color="off"
-        )
+        # Display recent metrics with colors
+        recent_total_strides.metric("Total Strides", value=total_strides_recent)
         
-        # Display overall metrics (Left Foot)
-        overall_lf_strides.metric("Total Strides", value=metrics_lf_overall['total_strides'])
-        overall_lf_stance.metric(
-            "Stance Time",
-            value=f"{metrics_lf_overall['stance_time_mean']:.3f} s" if metrics_lf_overall['stance_time_mean'] is not None else "--",
-            delta=f"± {metrics_lf_overall['stance_time_std']:.3f} s" if metrics_lf_overall['stance_time_std'] is not None else None,
-            delta_color="off"
-        )
-        overall_lf_swing.metric(
-            "Swing Time",
-            value=f"{metrics_lf_overall['swing_time_mean']:.3f} s" if metrics_lf_overall['swing_time_mean'] is not None else "--",
-            delta=f"± {metrics_lf_overall['swing_time_std']:.3f} s" if metrics_lf_overall['swing_time_std'] is not None else None,
-            delta_color="off"
-        )
-        overall_lf_stride.metric(
-            "Stride Time",
-            value=f"{metrics_lf_overall['stride_time_mean']:.3f} s" if metrics_lf_overall['stride_time_mean'] is not None else "--",
-            delta=f"± {metrics_lf_overall['stride_time_std']:.3f} s" if metrics_lf_overall['stride_time_std'] is not None else None,
-            delta_color="off"
-        )
+        cadence_emoji_f, _ = get_metric_status(avg_cadence_recent, 'cadence_walking')
+        recent_cadence.metric("Cadence (steps/min)", value=f"{cadence_emoji_f} {avg_cadence_recent:.1f}" if avg_cadence_recent is not None else "--", help=TOOLTIPS['cadence'])
         
-        # Display overall metrics (Right Foot)
-        overall_rf_strides.metric("Total Strides", value=metrics_rf_overall['total_strides'])
-        overall_rf_stance.metric(
-            "Stance Time",
-            value=f"{metrics_rf_overall['stance_time_mean']:.3f} s" if metrics_rf_overall['stance_time_mean'] is not None else "--",
-            delta=f"± {metrics_rf_overall['stance_time_std']:.3f} s" if metrics_rf_overall['stance_time_std'] is not None else None,
-            delta_color="off"
-        )
-        overall_rf_swing.metric(
-            "Swing Time",
-            value=f"{metrics_rf_overall['swing_time_mean']:.3f} s" if metrics_rf_overall['swing_time_mean'] is not None else "--",
-            delta=f"± {metrics_rf_overall['swing_time_std']:.3f} s" if metrics_rf_overall['swing_time_std'] is not None else None,
-            delta_color="off"
-        )
-        overall_rf_stride.metric(
-            "Stride Time",
-            value=f"{metrics_rf_overall['stride_time_mean']:.3f} s" if metrics_rf_overall['stride_time_mean'] is not None else "--",
-            delta=f"± {metrics_rf_overall['stride_time_std']:.3f} s" if metrics_rf_overall['stride_time_std'] is not None else None,
-            delta_color="off"
-        )
+        cv_emoji_f, _ = get_metric_status(avg_stride_cv_recent, 'stride_variability')
+        recent_stride_variability.metric("Stride Variability (CV)", value=f"{cv_emoji_f} {avg_stride_cv_recent:.1f}%" if avg_stride_cv_recent is not None else "--", help=TOOLTIPS['stride_variability'])
+        
+        sym_emoji_f, _ = get_metric_status(symmetry_recent['stride_time_symmetry'], 'symmetry')
+        recent_stride_symmetry.metric("Stride Symmetry", value=f"{sym_emoji_f} {symmetry_recent['stride_time_symmetry']:.1f}%" if symmetry_recent['stride_time_symmetry'] is not None else "--", help=TOOLTIPS['stride_symmetry'])
+        
+        contact_emoji_f, _ = get_metric_status(avg_contact_recent, 'contact_time_walking')
+        recent_contact_time.metric("Avg Contact Time", value=f"{contact_emoji_f} {avg_contact_recent:.1f}%" if avg_contact_recent is not None else "--", help=TOOLTIPS['contact_time'])
+        
+        ratio_emoji_f, _ = get_metric_status(avg_stance_swing_recent, 'stance_swing_walking')
+        recent_stance_swing_ratio.metric("Stance/Swing Ratio", value=f"{ratio_emoji_f} {avg_stance_swing_recent:.2f}" if avg_stance_swing_recent is not None else "--", help=TOOLTIPS['stance_swing_ratio'])
+        
+        recent_lf_stride.metric("Stride Time", value=f"{metrics_lf_recent['stride_time_mean']:.3f} s" if metrics_lf_recent['stride_time_mean'] is not None else "--", delta=f"± {metrics_lf_recent['stride_time_std']:.3f} s" if metrics_lf_recent['stride_time_std'] is not None else None, delta_color="off", help=TOOLTIPS['stride_time'])
+        
+        lf_contact_emoji_f, _ = get_metric_status(metrics_lf_recent['contact_time_percent'], 'contact_time_walking')
+        recent_lf_contact.metric("Contact Time", value=f"{lf_contact_emoji_f} {metrics_lf_recent['contact_time_percent']:.1f}%" if metrics_lf_recent['contact_time_percent'] is not None else "--", help=TOOLTIPS['contact_time'])
+        
+        recent_rf_stride.metric("Stride Time", value=f"{metrics_rf_recent['stride_time_mean']:.3f} s" if metrics_rf_recent['stride_time_mean'] is not None else "--", delta=f"± {metrics_rf_recent['stride_time_std']:.3f} s" if metrics_rf_recent['stride_time_std'] is not None else None, delta_color="off", help=TOOLTIPS['stride_time'])
+        
+        rf_contact_emoji_f, _ = get_metric_status(metrics_rf_recent['contact_time_percent'], 'contact_time_walking')
+        recent_rf_contact.metric("Contact Time", value=f"{rf_contact_emoji_f} {metrics_rf_recent['contact_time_percent']:.1f}%" if metrics_rf_recent['contact_time_percent'] is not None else "--", help=TOOLTIPS['contact_time'])
+        
+        # Calculate combined metrics for overall
+        total_strides_overall = metrics_lf_overall['total_strides'] + metrics_rf_overall['total_strides']
+        avg_cadence_overall = None
+        if metrics_lf_overall['cadence'] is not None and metrics_rf_overall['cadence'] is not None:
+            avg_cadence_overall = (metrics_lf_overall['cadence'] + metrics_rf_overall['cadence']) / 2
+        avg_stride_cv_overall = None
+        if metrics_lf_overall['stride_time_cv'] is not None and metrics_rf_overall['stride_time_cv'] is not None:
+            avg_stride_cv_overall = (metrics_lf_overall['stride_time_cv'] + metrics_rf_overall['stride_time_cv']) / 2
+        avg_contact_overall = None
+        if metrics_lf_overall['contact_time_percent'] is not None and metrics_rf_overall['contact_time_percent'] is not None:
+            avg_contact_overall = (metrics_lf_overall['contact_time_percent'] + metrics_rf_overall['contact_time_percent']) / 2
+        avg_stance_swing_overall = None
+        if metrics_lf_overall['stance_swing_ratio'] is not None and metrics_rf_overall['stance_swing_ratio'] is not None:
+            avg_stance_swing_overall = (metrics_lf_overall['stance_swing_ratio'] + metrics_rf_overall['stance_swing_ratio']) / 2
+        
+        # Display overall metrics with colors
+        overall_total_strides.metric("Total Strides", value=total_strides_overall)
+        
+        cadence_emoji_o, _ = get_metric_status(avg_cadence_overall, 'cadence_walking')
+        overall_cadence.metric("Cadence (steps/min)", value=f"{cadence_emoji_o} {avg_cadence_overall:.1f}" if avg_cadence_overall is not None else "--", help=TOOLTIPS['cadence'])
+        
+        cv_emoji_o, _ = get_metric_status(avg_stride_cv_overall, 'stride_variability')
+        overall_stride_variability.metric("Stride Variability (CV)", value=f"{cv_emoji_o} {avg_stride_cv_overall:.1f}%" if avg_stride_cv_overall is not None else "--", help=TOOLTIPS['stride_variability'])
+        
+        sym_emoji_o, _ = get_metric_status(symmetry_overall['stride_time_symmetry'], 'symmetry')
+        overall_stride_symmetry.metric("Stride Symmetry", value=f"{sym_emoji_o} {symmetry_overall['stride_time_symmetry']:.1f}%" if symmetry_overall['stride_time_symmetry'] is not None else "--", help=TOOLTIPS['stride_symmetry'])
+        
+        contact_emoji_o, _ = get_metric_status(avg_contact_overall, 'contact_time_walking')
+        overall_contact_time.metric("Avg Contact Time", value=f"{contact_emoji_o} {avg_contact_overall:.1f}%" if avg_contact_overall is not None else "--", help=TOOLTIPS['contact_time'])
+        
+        ratio_emoji_o, _ = get_metric_status(avg_stance_swing_overall, 'stance_swing_walking')
+        overall_stance_swing_ratio.metric("Stance/Swing Ratio", value=f"{ratio_emoji_o} {avg_stance_swing_overall:.2f}" if avg_stance_swing_overall is not None else "--", help=TOOLTIPS['stance_swing_ratio'])
+        
+        overall_lf_stride.metric("Stride Time", value=f"{metrics_lf_overall['stride_time_mean']:.3f} s" if metrics_lf_overall['stride_time_mean'] is not None else "--", delta=f"± {metrics_lf_overall['stride_time_std']:.3f} s" if metrics_lf_overall['stride_time_std'] is not None else None, delta_color="off", help=TOOLTIPS['stride_time'])
+        
+        lf_contact_emoji_o, _ = get_metric_status(metrics_lf_overall['contact_time_percent'], 'contact_time_walking')
+        overall_lf_contact.metric("Contact Time", value=f"{lf_contact_emoji_o} {metrics_lf_overall['contact_time_percent']:.1f}%" if metrics_lf_overall['contact_time_percent'] is not None else "--", help=TOOLTIPS['contact_time'])
+        
+        overall_rf_stride.metric("Stride Time", value=f"{metrics_rf_overall['stride_time_mean']:.3f} s" if metrics_rf_overall['stride_time_mean'] is not None else "--", delta=f"± {metrics_rf_overall['stride_time_std']:.3f} s" if metrics_rf_overall['stride_time_std'] is not None else None, delta_color="off", help=TOOLTIPS['stride_time'])
+        
+        rf_contact_emoji_o, _ = get_metric_status(metrics_rf_overall['contact_time_percent'], 'contact_time_walking')
+        overall_rf_contact.metric("Contact Time", value=f"{rf_contact_emoji_o} {metrics_rf_overall['contact_time_percent']:.1f}%" if metrics_rf_overall['contact_time_percent'] is not None else "--", help=TOOLTIPS['contact_time'])
     else:
-        # Show empty metrics before first stream
-        # Recent metrics (Left Foot)
-        recent_lf_strides.metric("Total Strides", value="--")
-        recent_lf_stance.metric("Stance Time", value="--")
-        recent_lf_swing.metric("Swing Time", value="--")
-        recent_lf_stride.metric("Stride Time", value="--")
+        # Show empty metrics before first stream with tooltips
+        # Recent metrics
+        recent_total_strides.metric("Total Strides", value="--")
+        recent_cadence.metric("Cadence (steps/min)", value="--", help=TOOLTIPS['cadence'])
+        recent_stride_variability.metric("Stride Variability (CV)", value="--", help=TOOLTIPS['stride_variability'])
+        recent_stride_symmetry.metric("Stride Symmetry", value="--", help=TOOLTIPS['stride_symmetry'])
+        recent_contact_time.metric("Avg Contact Time", value="--", help=TOOLTIPS['contact_time'])
+        recent_stance_swing_ratio.metric("Stance/Swing Ratio", value="--", help=TOOLTIPS['stance_swing_ratio'])
+        recent_lf_stride.metric("Stride Time", value="--", help=TOOLTIPS['stride_time'])
+        recent_lf_contact.metric("Contact Time", value="--", help=TOOLTIPS['contact_time'])
+        recent_rf_stride.metric("Stride Time", value="--", help=TOOLTIPS['stride_time'])
+        recent_rf_contact.metric("Contact Time", value="--", help=TOOLTIPS['contact_time'])
         
-        # Recent metrics (Right Foot)
-        recent_rf_strides.metric("Total Strides", value="--")
-        recent_rf_stance.metric("Stance Time", value="--")
-        recent_rf_swing.metric("Swing Time", value="--")
-        recent_rf_stride.metric("Stride Time", value="--")
-        
-        # Overall metrics (Left Foot)
-        overall_lf_strides.metric("Total Strides", value="--")
-        overall_lf_stance.metric("Stance Time", value="--")
-        overall_lf_swing.metric("Swing Time", value="--")
-        overall_lf_stride.metric("Stride Time", value="--")
-        
-        # Overall metrics (Right Foot)
-        overall_rf_strides.metric("Total Strides", value="--")
-        overall_rf_stance.metric("Stance Time", value="--")
-        overall_rf_swing.metric("Swing Time", value="--")
-        overall_rf_stride.metric("Stride Time", value="--")
+        # Overall metrics
+        overall_total_strides.metric("Total Strides", value="--")
+        overall_cadence.metric("Cadence (steps/min)", value="--", help=TOOLTIPS['cadence'])
+        overall_stride_variability.metric("Stride Variability (CV)", value="--", help=TOOLTIPS['stride_variability'])
+        overall_stride_symmetry.metric("Stride Symmetry", value="--", help=TOOLTIPS['stride_symmetry'])
+        overall_contact_time.metric("Avg Contact Time", value="--", help=TOOLTIPS['contact_time'])
+        overall_stance_swing_ratio.metric("Stance/Swing Ratio", value="--", help=TOOLTIPS['stance_swing_ratio'])
+        overall_lf_stride.metric("Stride Time", value="--", help=TOOLTIPS['stride_time'])
+        overall_lf_contact.metric("Contact Time", value="--", help=TOOLTIPS['contact_time'])
+        overall_rf_stride.metric("Stride Time", value="--", help=TOOLTIPS['stride_time'])
+        overall_rf_contact.metric("Contact Time", value="--", help=TOOLTIPS['contact_time'])
     
     if st.session_state.last_chart is None:
         status.info("Ready to stream. Click 'Start Stream' to begin.")
