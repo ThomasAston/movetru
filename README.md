@@ -14,7 +14,9 @@ A working demo of the Streamlit app can be found at: [movetru-stride.streamlit.a
 
 The main Streamlit app (`app.py`) includes real-time stride event detection:
 
-### Running the App
+### Running the app locally
+
+The online version can be slow, so to run the app locally, clone the repository and run the following commands in your terminal:
 
 ```bash
 # Install dependencies
