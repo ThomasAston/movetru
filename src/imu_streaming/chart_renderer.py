@@ -61,76 +61,7 @@ class ChartRenderer:
         # Add gait event markers if provided
         if events and times:
             time_min, time_max = min(times), max(times)
-            
-            # Helper function to get y-values at event times
-            def get_y_at_times(event_times):
-                # Find corresponding y-values for event times within the current window
-                y_vals = []
-                x_vals = []
-                for t in event_times:
-                    if time_min <= t <= time_max:
-                        # Find closest time index
-                        idx = min(range(len(times)), key=lambda i: abs(times[i] - t))
-                        x_vals.append(times[idx])
-                        y_vals.append(values[idx])
-                return x_vals, y_vals
-            
-            # Mid-swing events (small black X)
-            if 'msw' in events and events['msw']:
-                msw_x, msw_y = get_y_at_times(events['msw'])
-                if msw_x:
-                    fig.add_trace(go.Scatter(
-                        x=msw_x,
-                        y=msw_y,
-                        mode='markers',
-                        marker=dict(
-                            symbol='x', 
-                            size=6,  # Smaller size
-                            color='rgba(0, 0, 0, 0.5)',  # More transparent
-                            line=dict(width=1)  # Thinner line
-                        ),
-                        name='MSW',
-                        showlegend=False,
-                        hoverinfo='skip'
-                    ))
-            
-            # Foot strike events (small black circle)
-            if 'fs' in events and events['fs']:
-                fs_x, fs_y = get_y_at_times(events['fs'])
-                if fs_x:
-                    fig.add_trace(go.Scatter(
-                        x=fs_x,
-                        y=fs_y,
-                        mode='markers',
-                        marker=dict(
-                            symbol='circle', 
-                            size=5,  # Smaller size
-                            color='rgba(0, 0, 0, 0.5)',  # More transparent
-                            line=dict(width=0)
-                        ),
-                        name='FS',
-                        showlegend=False,
-                        hoverinfo='skip'
-                    ))
-            
-            # Foot off events (small black triangle-up)
-            if 'fo' in events and events['fo']:
-                fo_x, fo_y = get_y_at_times(events['fo'])
-                if fo_x:
-                    fig.add_trace(go.Scatter(
-                        x=fo_x,
-                        y=fo_y,
-                        mode='markers',
-                        marker=dict(
-                            symbol='triangle-up', 
-                            size=5,  # Smaller size
-                            color='rgba(0, 0, 0, 0.5)',  # More transparent
-                            line=dict(width=0)
-                        ),
-                        name='FO',
-                        showlegend=False,
-                        hoverinfo='skip'
-                    ))
+            self._add_simple_event_markers(fig, events, times, values, time_min, time_max)
         
         # Set x-axis range based on data
         if times:
@@ -142,44 +73,17 @@ class ChartRenderer:
             height=self.config.CHART_HEIGHT,
             margin=self.config.CHART_MARGIN,
             xaxis_title="Time (s)",
-            xaxis=dict(range=x_range, fixedrange=True) if x_range else dict(fixedrange=True),
-            yaxis=dict(range=y_range, fixedrange=True),
+            yaxis=dict(range=y_range),
             showlegend=False,
             transition={'duration': 0},
             uirevision='constant',
-            # Reduce animations that can cause flickering
             hovermode=False,
             dragmode=False,
-            # Additional settings to reduce juddering
             plot_bgcolor='white',
             paper_bgcolor='white',
-            # Disable all animations
-            newshape=dict(line_color='black'),
         )
         
-        # Disable animations and transitions for smoother updates
-        fig.update_xaxes(
-            fixedrange=True,
-            showgrid=True,
-            gridcolor='lightgray',
-            zeroline=True,
-            zerolinecolor='lightgray',
-            # Disable axis animations
-            type='linear'
-        )
-        fig.update_yaxes(
-            fixedrange=True,
-            showgrid=True,
-            gridcolor='lightgray',
-            zeroline=True,
-            zerolinecolor='lightgray',
-            # Disable axis animations
-            type='linear'
-        )
-        
-        # Disable trace animations
-        for trace in fig.data:
-            trace.update(showlegend=False)
+        self._configure_axis_common(fig, x_range)
         
         return fig
 
@@ -324,31 +228,51 @@ class ChartRenderer:
             paper_bgcolor='white',
         )
         
-        # Update x-axes (only show title on bottom plot)
-        fig.update_xaxes(
-            range=x_range,
-            fixedrange=True,
-            showgrid=True,
-            gridcolor='rgba(220, 220, 220, 0.3)',  # Very light grid
-            zeroline=False,
-            type='linear'
-        )
+        # Configure axes with common settings
+        self._configure_axis_common(fig, x_range)
         fig.update_xaxes(title_text="Time (s)", row=2, col=1)
-        
-        # Update y-axes with shared range
-        fig.update_yaxes(
-            title_text="Ang. velocity (deg/s)",
-            range=y_range,
-            fixedrange=True,
-            showgrid=True,
-            gridcolor='rgba(220, 220, 220, 0.3)',  # Very light grid
-            zeroline=True,
-            zerolinecolor='rgba(200, 200, 200, 0.5)',
-            zerolinewidth=1,
-            type='linear'
-        )
+        fig.update_yaxes(title_text="Ang. velocity (deg/s)", range=y_range)
         
         return fig
+    
+    def _add_simple_event_markers(
+        self,
+        fig: go.Figure,
+        events: Dict[str, List[float]],
+        times: List[float],
+        values: List[float],
+        time_min: float,
+        time_max: float
+    ):
+        """Add event markers to a simple (non-subplot) chart."""
+        def get_y_at_times(event_times):
+            y_vals, x_vals = [], []
+            for t in event_times:
+                if time_min <= t <= time_max:
+                    idx = min(range(len(times)), key=lambda i: abs(times[i] - t))
+                    x_vals.append(times[idx])
+                    y_vals.append(values[idx])
+            return x_vals, y_vals
+        
+        event_configs = {
+            'msw': dict(symbol='x', size=6, color='rgba(0, 0, 0, 0.5)', line=dict(width=1)),
+            'fs': dict(symbol='circle', size=5, color='rgba(0, 0, 0, 0.5)', line=dict(width=0)),
+            'fo': dict(symbol='triangle-up', size=5, color='rgba(0, 0, 0, 0.5)', line=dict(width=0))
+        }
+        
+        for event_type, marker_config in event_configs.items():
+            if event_type in events and events[event_type]:
+                event_x, event_y = get_y_at_times(events[event_type])
+                if event_x:
+                    fig.add_trace(go.Scatter(
+                        x=event_x,
+                        y=event_y,
+                        mode='markers',
+                        marker=marker_config,
+                        name=event_type.upper(),
+                        showlegend=False,
+                        hoverinfo='skip'
+                    ))
     
     def _add_event_markers(
         self,
@@ -365,6 +289,7 @@ class ChartRenderer:
         """Helper to add event markers to a subplot."""
         
         def get_y_at_times(event_times):
+            """Map event times to corresponding y-values."""
             y_vals = []
             x_vals = []
             for t in event_times:
@@ -374,74 +299,43 @@ class ChartRenderer:
                     y_vals.append(values[idx])
             return x_vals, y_vals
         
-        # Mid-swing events (refined X marker)
-        if 'msw' in events and events['msw']:
-            msw_x, msw_y = get_y_at_times(events['msw'])
-            if msw_x:
-                fig.add_trace(
-                    go.Scatter(
-                        x=msw_x,
-                        y=msw_y,
-                        mode='markers',
-                        marker=dict(
-                            symbol='x-thin',  # Thinner X
-                            size=8,
-                            color='rgba(0, 0, 0, 0.4)',
-                            line=dict(width=1)
-                        ),
-                        name='Mid-Swing (MSW)',
-                        legendgroup='msw',
-                        showlegend=show_legend,
-                        hoverinfo='skip'
-                    ),
-                    row=row, col=col
-                )
+        # Event marker configurations
+        event_configs = {
+            'msw': {
+                'name': 'Mid-Swing (MSW)',
+                'legendgroup': 'msw',
+                'marker': dict(symbol='x-thin', size=8, color='rgba(0, 0, 0, 0.4)', line=dict(width=1))
+            },
+            'fs': {
+                'name': 'Foot Strike (FS)',
+                'legendgroup': 'fs',
+                'marker': dict(symbol='circle', size=7, color='rgba(0, 0, 0, 0.4)', line=dict(width=0))
+            },
+            'fo': {
+                'name': 'Foot Off (FO)',
+                'legendgroup': 'fo',
+                'marker': dict(symbol='triangle-up', size=7, color='rgba(0, 0, 0, 0.4)', line=dict(width=0))
+            }
+        }
         
-        # Foot strike events (small circle)
-        if 'fs' in events and events['fs']:
-            fs_x, fs_y = get_y_at_times(events['fs'])
-            if fs_x:
-                fig.add_trace(
-                    go.Scatter(
-                        x=fs_x,
-                        y=fs_y,
-                        mode='markers',
-                        marker=dict(
-                            symbol='circle',
-                            size=7,
-                            color='rgba(0, 0, 0, 0.4)',
-                            line=dict(width=0)
+        # Add markers for each event type
+        for event_type, config in event_configs.items():
+            if event_type in events and events[event_type]:
+                event_x, event_y = get_y_at_times(events[event_type])
+                if event_x:
+                    fig.add_trace(
+                        go.Scatter(
+                            x=event_x,
+                            y=event_y,
+                            mode='markers',
+                            marker=config['marker'],
+                            name=config['name'],
+                            legendgroup=config['legendgroup'],
+                            showlegend=show_legend,
+                            hoverinfo='skip'
                         ),
-                        name='Foot Strike (FS)',
-                        legendgroup='fs',
-                        showlegend=show_legend,
-                        hoverinfo='skip'
-                    ),
-                    row=row, col=col
-                )
-        
-        # Foot off events (small triangle)
-        if 'fo' in events and events['fo']:
-            fo_x, fo_y = get_y_at_times(events['fo'])
-            if fo_x:
-                fig.add_trace(
-                    go.Scatter(
-                        x=fo_x,
-                        y=fo_y,
-                        mode='markers',
-                        marker=dict(
-                            symbol='triangle-up',
-                            size=7,
-                            color='rgba(0, 0, 0, 0.4)',
-                            line=dict(width=0)
-                        ),
-                        name='Foot Off (FO)',
-                        legendgroup='fo',
-                        showlegend=show_legend,
-                        hoverinfo='skip'
-                    ),
-                    row=row, col=col
-                )
+                        row=row, col=col
+                    )
 
     def downsample_data(
         self, 
@@ -461,3 +355,24 @@ class ChartRenderer:
             Tuple of (downsampled_times, downsampled_values)
         """
         return times[::factor], values[::factor]
+    
+    def _configure_axis_common(self, fig: go.Figure, x_range: Optional[List[float]] = None):
+        """Apply common axis configuration to reduce flickering and enable smooth updates."""
+        fig.update_xaxes(
+            range=x_range,
+            fixedrange=True,
+            showgrid=True,
+            gridcolor='rgba(220, 220, 220, 0.3)',
+            zeroline=False,
+            type='linear'
+        )
+        
+        fig.update_yaxes(
+            fixedrange=True,
+            showgrid=True,
+            gridcolor='rgba(220, 220, 220, 0.3)',
+            zeroline=True,
+            zerolinecolor='rgba(200, 200, 200, 0.5)',
+            zerolinewidth=1,
+            type='linear'
+        )

@@ -11,13 +11,16 @@ class GaitEventDetector:
     Based on the algorithm from Brasiliano et al., 2023 and Hsu et al., 2014.
     """
 
+    # Default configuration
+    DEFAULT_BUFFER_DURATION = 5  # seconds
+    
     def __init__(
         self,
         fs: int = 256,
         msw_threshold: float = -115.0,
         zc_threshold: float = 0.0,
         ma_window: int = 15,
-        max_buffer_size: int = None,
+        max_buffer_size: Optional[int] = None,
         max_stride_time: float = 2.5,
         min_stride_time: float = 0.1,
     ):
@@ -37,7 +40,7 @@ class GaitEventDetector:
         self.msw_threshold = msw_threshold
         self.zc_threshold = zc_threshold
         self.ma_window = ma_window
-        self.max_buffer_size = max_buffer_size or (fs * 5)  # Default: 5 seconds
+        self.max_buffer_size = max_buffer_size or (fs * self.DEFAULT_BUFFER_DURATION)
         self.max_stride_time = max_stride_time
         self.min_stride_time = min_stride_time
 
