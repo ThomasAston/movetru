@@ -2,8 +2,8 @@ import polars as pl
 import matplotlib.pyplot as plt
 import numpy as np
 
-df_lf = pl.read_parquet('../data/raw/imu/P02_LF.parquet')
-df_rf = pl.read_parquet('../data/raw/imu/P02_RF.parquet')
+df_lf = pl.read_parquet('../data/raw/imu/P01_LF.parquet')
+df_rf = pl.read_parquet('../data/raw/imu/P01_RF.parquet')
 
 # Convert to numpy arrays for easier processing
 lf_accel_z = df_lf['Accel Z'].to_numpy()

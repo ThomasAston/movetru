@@ -132,10 +132,17 @@ class ChartRenderer:
                         hoverinfo='skip'
                     ))
         
+        # Set x-axis range based on data
+        if times:
+            x_range = [min(times), max(times)]
+        else:
+            x_range = None
+        
         fig.update_layout(
             height=self.config.CHART_HEIGHT,
             margin=self.config.CHART_MARGIN,
             xaxis_title="Time (s)",
+            xaxis=dict(range=x_range, fixedrange=True) if x_range else dict(fixedrange=True),
             yaxis=dict(range=y_range, fixedrange=True),
             showlegend=False,
             transition={'duration': 0},
@@ -185,7 +192,8 @@ class ChartRenderer:
         y_range: List[float],
         sensor_name: str,
         events_lf: Optional[Dict[str, List[float]]] = None,
-        events_rf: Optional[Dict[str, List[float]]] = None
+        events_rf: Optional[Dict[str, List[float]]] = None,
+        x_range: Optional[List[float]] = None
     ) -> go.Figure:
         """
         Create a stacked subplot figure for left and right foot with shared y-axis.
@@ -199,6 +207,7 @@ class ChartRenderer:
             sensor_name: Name of the sensor
             events_lf: Optional left foot events
             events_rf: Optional right foot events
+            x_range: Optional fixed x-axis range [min, max]. If None, auto-scales based on data.
             
         Returns:
             Plotly Figure with subplots
@@ -285,6 +294,13 @@ class ChartRenderer:
             time_min_rf, time_max_rf = min(times_rf), max(times_rf)
             self._add_event_markers(fig, events_rf, times_rf, values_rf, time_min_rf, time_max_rf, row=2, col=1, show_legend=False)
         
+        # Use provided x_range if available, otherwise calculate from data
+        if x_range is None:
+            if times_lf and times_rf:
+                x_min = min(min(times_lf), min(times_rf))
+                x_max = max(max(times_lf), max(times_rf))
+                x_range = [x_min, x_max]
+        
         # Update layout
         fig.update_layout(
             height=self.config.CHART_HEIGHT,
@@ -310,6 +326,7 @@ class ChartRenderer:
         
         # Update x-axes (only show title on bottom plot)
         fig.update_xaxes(
+            range=x_range,
             fixedrange=True,
             showgrid=True,
             gridcolor='rgba(220, 220, 220, 0.3)',  # Very light grid

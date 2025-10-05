@@ -246,6 +246,9 @@ async def stream_imu_data(selected_player: str, sensors: list, start_from_time: 
         f"Streaming {min_len - start_from} samples (starting at {actual_start_time:.2f}s, sample {start_from})"
     )
     
+    # Calculate window duration for x-axis range
+    window_duration_seconds = stream_config.DEFAULT_WINDOW_SIZE / stream_config.SAMPLING_RATE
+    
     # Stream the data
     last_update_time = time.time()
     sample_count = 0
@@ -306,12 +309,26 @@ async def stream_imu_data(selected_player: str, sensors: list, start_from_time: 
                     max(y_range_lf[1], y_range_rf[1])
                 ]
                 
-                # Create combined chart with side-by-side subplots
+                # Calculate dynamic x-axis range based on current data
+                # Always show a fixed 10-second window that scrolls with the data
+                if data['lf_times'] and data['rf_times']:
+                    # Get the maximum time from both feet
+                    current_max_time = max(max(data['lf_times']), max(data['rf_times']))
+                    # Set range to show window_duration_seconds ending at current_max_time
+                    x_min = current_max_time - window_duration_seconds
+                    x_max = current_max_time
+                    dynamic_x_range = [x_min, x_max]
+                else:
+                    # Fallback to initial range if no data yet
+                    dynamic_x_range = [actual_start_time, actual_start_time + window_duration_seconds]
+                
+                # Create combined chart with dynamic x-axis range
                 fig = renderer.create_combined_chart(
                     times_lf_display, values_lf_display,
                     times_rf_display, values_rf_display,
                     y_range_combined, sensor,
-                    events_lf, events_rf
+                    events_lf, events_rf,
+                    x_range=dynamic_x_range
                 )
                 
                 # Save to session state for freezing
@@ -576,14 +593,18 @@ if not st.session_state.streaming:
         # Show frozen chart from last stream
         chart.plotly_chart(st.session_state.last_chart, use_container_width=True, config={'displayModeBar': False}, key='frozen_chart')
     elif chart:
-        # Show empty chart before first stream
+        # Show empty chart before first stream with x-range based on start time
+        window_duration = stream_config.DEFAULT_WINDOW_SIZE / stream_config.SAMPLING_RATE
+        # Use the selected start_time to set the x-axis range
+        empty_x_range = [start_time, start_time + window_duration]
         empty_fig = renderer.create_combined_chart(
-            times_lf=[0], values_lf=[0],
-            times_rf=[0], values_rf=[0],
+            times_lf=[start_time], values_lf=[0],
+            times_rf=[start_time], values_rf=[0],
             y_range=[-200, 200],
             sensor_name="Gyro Y",
             events_lf=None,
-            events_rf=None
+            events_rf=None,
+            x_range=empty_x_range
         )
         chart.plotly_chart(empty_fig, use_container_width=True, config={'displayModeBar': False}, key='empty_chart')
     

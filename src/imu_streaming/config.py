@@ -11,8 +11,8 @@ class StreamConfig:
     DATA_DIR: Path = Path("data/raw/imu")
     SAMPLING_RATE: int = 256  # Hz
     UPDATE_INTERVAL: int = SAMPLING_RATE // 10  # Update chart every N samples
-    DOWNSAMPLE_FACTOR: int = 4  # Display every Nth point (increased for smoother rendering)
-    DEFAULT_WINDOW_SIZE: int = SAMPLING_RATE * 3 # 5 seconds
+    DOWNSAMPLE_FACTOR: int = 5  # Display every Nth point (increased for smoother rendering)
+    DEFAULT_WINDOW_SIZE: int = SAMPLING_RATE * 10 # 10 seconds
     DEFAULT_SPEED: float = 1  # Playback speed multiplier (1 = real-time)
     RANGE_CALCULATION_WINDOW: int = 30  # seconds - for y-axis range calculation
     Y_AXIS_PADDING: float = 0.3  # Padding around data range (30%)
@@ -43,5 +43,5 @@ class UIConfig:
         'left_foot': '#d68032',   # Orange
         'right_foot': '#2a9d8f'   # Teal
     })
-    DEFAULT_START_TIME: float = 2170.0  # Default start time in seconds
+    DEFAULT_START_TIME: float = 2400.0  # Default start time in seconds
     TIME_STEP: float = 10.0  # Time step for number input
