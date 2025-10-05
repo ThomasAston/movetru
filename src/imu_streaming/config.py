@@ -12,7 +12,7 @@ class StreamConfig:
     SAMPLING_RATE: int = 256  # Hz
     UPDATE_INTERVAL: int = SAMPLING_RATE // 10  # Update chart every N samples
     DOWNSAMPLE_FACTOR: int = 5  # Display every Nth point (increased for smoother rendering)
-    DEFAULT_WINDOW_SIZE: int = SAMPLING_RATE * 10 # 10 seconds
+    DEFAULT_WINDOW_SIZE: int = SAMPLING_RATE * 5 # 10 seconds
     DEFAULT_SPEED: float = 1  # Playback speed multiplier (1 = real-time)
     RANGE_CALCULATION_WINDOW: int = 30  # seconds - for y-axis range calculation
     Y_AXIS_PADDING: float = 0.3  # Padding around data range (30%)
