@@ -3,50 +3,31 @@ Repository for Stage 2 Interview – Sports Biomechanics Data Scientist Task
 
 All files relating to the task are contained in this repository:
 - `data`: Contains raw and processed data including: IMU, motion capture, event data, as well as other files used for submission such as images and reading materials.
-- `pages`: Streamlit app files for interactive data visualization and analysis.
 - `presentation`: slides and materials for the presentation.
 - `src`: Source code for the IMU streaming and gait detection modules.
-- `utils`: basic Python scripts for data processing and analysis.
+- `utils`: basic Python scripts for initial data processing and analysis.
 - `workbooks`: Jupyter notebooks used for data exploration and analysis.
 
 A working demo of the Streamlit app can be found at: [movetru-stride.streamlit.app](https://movetru-stride.streamlit.app/)
 
 ## Real-Time Gait Detection
 
-The main Streamlit app (`app.py`) now includes real-time stride event detection:
-
-### Features
-- **Real-time Mid-Swing (MSW) detection**: Black X markers appear as events are detected
-- **Retrospective Foot Strike (FS) detection**: Black circle markers (slight delay)
-- **Retrospective Foot Off (FO) detection**: Black triangle-up markers (slight delay)
-- **Live metrics display**: Shows recent (5s window) and overall session statistics
-  - Stride count
-  - Stance time (mean ± std)
-  - Swing time (mean ± std)
-  - Stride time (mean ± std)
+The main Streamlit app (`app.py`) includes real-time stride event detection:
 
 ### Running the App
 
 ```bash
-# Activate the conda environment
-conda activate movetru
+# Install dependencies
+pip install -r requirements.txt
 
 # Run the Streamlit app
 streamlit run app.py
 ```
 
-### Testing
-
-Test the gait detector independently:
-
-```bash
-python test_gait_detector.py
-```
-
 ### Algorithm Details
 
-See `GAIT_DETECTION_INTEGRATION.md` for complete documentation of the algorithm implementation, parameters, and integration details.
+The sample data used throughout this work comes from the dataset provided by [Grouvel et al., 2023](https://www-nature-com.eux.idm.oclc.org/articles/s41597-023-02077-3). 
 
-The algorithm is based on:
-- Brasiliano et al., 2023 - Mid-swing detection using gyroscope data
-- Hsu et al., 2014 - Stride event detection methodology
+The event detection algorithms are inspired by the works of:
+- [Falbriard et al., 2018](https://www.frontiersin.org/journals/physiology/articles/10.3389/fphys.2018.00610/full)
+- [Gouda and Andrysek, 2022](https://www.mdpi.com/1424-8220/22/22/8888)
