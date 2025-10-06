@@ -16,7 +16,7 @@ The main Streamlit app (`app.py`) includes real-time stride event detection:
 
 ### Running the app locally
 
-The online version can be slow, so to run the app locally, clone the repository and run the following commands in your terminal:
+The online hosted version can be slow/flicker due to network latency, so to run the app locally, clone the repository and run the following commands in your terminal:
 
 ```bash
 # Install dependencies
